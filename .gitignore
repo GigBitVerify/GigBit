@@ -1,0 +1,6 @@
+node_modules/
+apps/api/dist/
+.dart_tool/
+build/
+*.log
+apps/api/.env
