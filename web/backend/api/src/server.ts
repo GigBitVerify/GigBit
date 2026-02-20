@@ -3236,6 +3236,12 @@ async function ensureSchema(): Promise<void> {
 
   const statements = [
     "CREATE EXTENSION IF NOT EXISTS pgcrypto",
+    // Core tables for fresh database bootstrap (Render/Postgres empty DB).
+    "CREATE TABLE IF NOT EXISTS users (id " + userIdType + " PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT, password_hash TEXT NOT NULL, full_name TEXT, name TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS transactions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL, amount NUMERIC(12,2) NOT NULL CHECK (amount > 0), note TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS withdrawals (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, amount NUMERIC(12,2) NOT NULL CHECK (amount > 0), insurance_contribution NUMERIC(12,2) NOT NULL CHECK (insurance_contribution >= 0), service_fee NUMERIC(12,2) NOT NULL CHECK (service_fee >= 0), total_fee NUMERIC(12,2) NOT NULL CHECK (total_fee >= 0), user_receives NUMERIC(12,2) NOT NULL CHECK (user_receives >= 0), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS insurance_contributions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, withdrawal_id UUID NOT NULL REFERENCES withdrawals(id) ON DELETE CASCADE, amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS insurance_claims (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, claim_type TEXT NOT NULL, description TEXT NOT NULL, proof_url TEXT, proof_name TEXT, incident_date DATE, claim_amount NUMERIC(12,2) NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'submitted', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS platform_connections (user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL, connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (user_id, platform))",
     "CREATE TABLE IF NOT EXISTS platform_connection_history (user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, platform TEXT NOT NULL, first_connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (user_id, platform))",
     "CREATE TABLE IF NOT EXISTS integration_platform_catalog (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL, logo_url TEXT, logo_bg_color TEXT NOT NULL DEFAULT '#1E3A8A', enabled BOOLEAN NOT NULL DEFAULT TRUE, sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
@@ -3279,6 +3285,7 @@ async function ensureSchema(): Promise<void> {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS gigbit_insurance BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_fuel NUMERIC(12,2)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_rent NUMERIC(12,2)",
+    "DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='id' AND data_type='uuid') THEN ALTER TABLE users ALTER COLUMN id SET DEFAULT gen_random_uuid(); END IF; END $$;",
     "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_unique ON users ((lower(username))) WHERE username IS NOT NULL",
     "CREATE INDEX IF NOT EXISTS idx_loan_repayments_loan_installment ON loan_repayments (loan_id, installment_no)",
