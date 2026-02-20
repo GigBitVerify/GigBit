@@ -1,7 +1,22 @@
 import nodemailer from "nodemailer";
 import { env } from "./config.js";
-function getTransport() {
-    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
+function smtpProfile(channel) {
+    if (channel === "admin") {
+        return {
+            user: env.SMTP_ADMIN_USER || env.SMTP_USER,
+            pass: env.SMTP_ADMIN_PASS || env.SMTP_PASS,
+            from: env.SMTP_ADMIN_FROM || env.SMTP_FROM,
+        };
+    }
+    return {
+        user: env.SMTP_USER_OTP_USER || env.SMTP_USER,
+        pass: env.SMTP_USER_OTP_PASS || env.SMTP_PASS,
+        from: env.SMTP_USER_OTP_FROM || env.SMTP_FROM,
+    };
+}
+function getTransport(channel) {
+    const profile = smtpProfile(channel);
+    if (!env.SMTP_HOST || !profile.user || !profile.pass) {
         return null;
     }
     return nodemailer.createTransport({
@@ -12,13 +27,15 @@ function getTransport() {
         greetingTimeout: 10000,
         socketTimeout: 15000,
         auth: {
-            user: env.SMTP_USER,
-            pass: env.SMTP_PASS,
+            user: profile.user,
+            pass: profile.pass,
         },
     });
 }
 export async function sendOtpEmail(email, otp, purpose, options) {
-    const transport = getTransport();
+    const channel = options?.channel === "admin" ? "admin" : "user";
+    const profile = smtpProfile(channel);
+    const transport = getTransport(channel);
     if (!transport) {
         throw new Error("SMTP is not configured on server");
     }
@@ -48,7 +65,7 @@ export async function sendOtpEmail(email, otp, purpose, options) {
     let info;
     try {
         info = await transport.sendMail({
-            from: env.SMTP_FROM || env.SMTP_USER,
+            from: profile.from || profile.user,
             to: email,
             subject,
             html,
@@ -57,7 +74,7 @@ export async function sendOtpEmail(email, otp, purpose, options) {
     catch (_) {
         // Retry once for transient SMTP/network issues.
         info = await transport.sendMail({
-            from: env.SMTP_FROM || env.SMTP_USER,
+            from: profile.from || profile.user,
             to: email,
             subject,
             html,
@@ -77,7 +94,8 @@ export async function sendOtpEmail(email, otp, purpose, options) {
     };
 }
 export async function sendAdminPasswordEmail(email, password) {
-    const transport = getTransport();
+    const profile = smtpProfile("admin");
+    const transport = getTransport("admin");
     if (!transport) {
         throw new Error("SMTP is not configured on server");
     }
@@ -95,7 +113,7 @@ export async function sendAdminPasswordEmail(email, password) {
     let info;
     try {
         info = await transport.sendMail({
-            from: env.SMTP_FROM || env.SMTP_USER,
+            from: profile.from || profile.user,
             to: email,
             subject,
             html,
@@ -103,7 +121,7 @@ export async function sendAdminPasswordEmail(email, password) {
     }
     catch (_) {
         info = await transport.sendMail({
-            from: env.SMTP_FROM || env.SMTP_USER,
+            from: profile.from || profile.user,
             to: email,
             subject,
             html,

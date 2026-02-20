@@ -19,6 +19,12 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  SMTP_ADMIN_USER: z.string().optional(),
+  SMTP_ADMIN_PASS: z.string().optional(),
+  SMTP_ADMIN_FROM: z.string().optional(),
+  SMTP_USER_OTP_USER: z.string().optional(),
+  SMTP_USER_OTP_PASS: z.string().optional(),
+  SMTP_USER_OTP_FROM: z.string().optional(),
   OTP_IN_RESPONSE: z.coerce.boolean().default(false),
   // Optional: enables admin-only endpoints (e.g. account deletion approvals).
   ADMIN_API_KEY: z.string().optional(),

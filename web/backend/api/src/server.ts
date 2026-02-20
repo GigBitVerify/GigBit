@@ -608,7 +608,10 @@ app.post("/admin/password/request-otp", async (req, res) => {
     [username, otp]
   );
   try {
-    await sendOtpEmail(ADMIN_LOGIN_EMAIL, otp, "password-reset", { username });
+    await sendOtpEmail(ADMIN_LOGIN_EMAIL, otp, "password-reset", {
+      username,
+      channel: "admin",
+    });
   } catch (error) {
     console.error("Failed to send admin password-reset OTP email", error);
     return res.status(500).json({ message: "Unable to send OTP email", detail: "Unable to send OTP email" });

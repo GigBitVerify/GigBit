@@ -509,7 +509,10 @@ app.post("/admin/password/request-otp", async (req, res) => {
     const otp = genOtp();
     await pgPool.query("INSERT INTO admin_password_reset_otps (username, otp, expires_at) VALUES ($1,$2,NOW()+INTERVAL '10 minutes') ON CONFLICT (username) DO UPDATE SET otp = EXCLUDED.otp, expires_at = EXCLUDED.expires_at, created_at = NOW()", [username, otp]);
     try {
-        await sendOtpEmail(ADMIN_LOGIN_EMAIL, otp, "password-reset", { username });
+        await sendOtpEmail(ADMIN_LOGIN_EMAIL, otp, "password-reset", {
+            username,
+            channel: "admin",
+        });
     }
     catch (error) {
         console.error("Failed to send admin password-reset OTP email", error);
