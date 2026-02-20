@@ -384,7 +384,7 @@
   <div class="wrap">
     <header class="nav">
       <div class="brand">
-        <img src="../../app/frontend/flutter_app/assets/branding/app_icon.png" alt="GigBit Logo" />
+        <img src="./assets/branding/app_icon.png" alt="GigBit Logo" />
         <span>GigBit</span>
       </div>
       <div class="right">
@@ -424,10 +424,10 @@
             <div class="popup-hint" id="viewDetails1">View Details</div>
             <div class="expand-panel">
               <div class="details-grid" id="platformDetailsGrid">
-                <div class="detail-card"><img src="../../app/frontend/flutter_app/assets/platforms/zomato.png" alt="Zomato" /><div><b id="p1">Zomato</b><span>Platform</span></div></div>
-                <div class="detail-card"><img src="../../app/frontend/flutter_app/assets/platforms/blinkit.png" alt="Blinkit" /><div><b id="p3">Blinkit</b><span>Platform</span></div></div>
-                <div class="detail-card"><img src="../../app/frontend/flutter_app/assets/platforms/rapido.png" alt="Rapido" /><div><b id="p4">Rapido</b><span>Platform</span></div></div>
-                <div class="detail-card"><img class="ola-light-bg" src="../../app/frontend/flutter_app/assets/platforms/ola.png" alt="Ola" /><div><b id="p6">Ola</b><span>Platform</span></div></div>
+                <div class="detail-card"><img src="./assets/platforms/zomato.png" alt="Zomato" /><div><b id="p1">Zomato</b><span>Platform</span></div></div>
+                <div class="detail-card"><img src="./assets/platforms/blinkit.png" alt="Blinkit" /><div><b id="p3">Blinkit</b><span>Platform</span></div></div>
+                <div class="detail-card"><img src="./assets/platforms/rapido.png" alt="Rapido" /><div><b id="p4">Rapido</b><span>Platform</span></div></div>
+                <div class="detail-card"><img class="ola-light-bg" src="./assets/platforms/ola.png" alt="Ola" /><div><b id="p6">Ola</b><span>Platform</span></div></div>
               </div>
             </div>
           </div>
@@ -656,10 +656,10 @@
     function fallbackLogoBySlug(slug) {
       const key = String(slug || "").toLowerCase();
       const map = {
-        zomato: "../../app/frontend/flutter_app/assets/platforms/zomato.png",
-        blinkit: "../../app/frontend/flutter_app/assets/platforms/blinkit.png",
-        rapido: "../../app/frontend/flutter_app/assets/platforms/rapido.png",
-        ola: "../../app/frontend/flutter_app/assets/platforms/ola.png"
+        zomato: "./assets/platforms/zomato.png",
+        blinkit: "./assets/platforms/blinkit.png",
+        rapido: "./assets/platforms/rapido.png",
+        ola: "./assets/platforms/ola.png"
       };
       return map[key] || "";
     }
