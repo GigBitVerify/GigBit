@@ -10,14 +10,16 @@ Set-Location $repo
 
 $releaseApk = Join-Path $repo "app/frontend/flutter_app/build/app/outputs/flutter-apk/app-release.apk"
 $debugApk = Join-Path $repo "app/frontend/flutter_app/build/app/outputs/flutter-apk/app-debug.apk"
-$targetApk = Join-Path $repo "web/frontend/GigBit.apk"
+$targetApk = Join-Path $repo "app/releases/GigBit.apk"
+$targetDir = Split-Path -Parent $targetApk
+New-Item -ItemType Directory -Force $targetDir | Out-Null
 
 if (Test-Path $releaseApk) {
   Copy-Item -Force $releaseApk $targetApk
-  Write-Host "Copied release APK -> web/frontend/GigBit.apk"
+  Write-Host "Copied release APK -> app/releases/GigBit.apk"
 } elseif (Test-Path $debugApk) {
   Copy-Item -Force $debugApk $targetApk
-  Write-Host "Copied debug APK -> web/frontend/GigBit.apk"
+  Write-Host "Copied debug APK -> app/releases/GigBit.apk"
 } else {
   Write-Warning "No APK found. Build app first:"
   Write-Warning "  cd app/frontend/flutter_app"

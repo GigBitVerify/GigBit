@@ -52,12 +52,13 @@ Recommended for deployment:
    - `cd app/frontend/flutter_app`
    - `flutter build apk --release`
 2. Create a GitHub Release and upload APK asset.
-3. Replace `web/frontend/GigBit.apk` link if you want hosted artifact from GitHub release URL.
+3. Keep APK outside `web/frontend` (Cloudflare Pages has a 25 MiB per-file limit).
+4. Use GitHub-hosted APK URL in landing page (already configured).
 
 ## 5) Keep Download Button Working
 
-Current button points to:
-- `web/frontend/GigBit.apk`
+Current APK file location in repo:
+- `app/releases/GigBit.apk`
 
 When you generate a new APK, overwrite this file (or update button URL to your latest GitHub release asset).
 

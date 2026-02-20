@@ -76,7 +76,7 @@ cd ..\..\..
 2. Refresh web APK + push:
 ```bat
 scripts\prepare-web-release.cmd
-git add web/frontend/GigBit.apk
+git add app/releases/GigBit.apk
 git commit -m "Update APK"
 git push
 ```
