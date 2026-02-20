@@ -36,6 +36,56 @@ function getTransport(channel) {
     options.family = 4;
     return nodemailer.createTransport(options);
 }
+function parseFromHeader(input) {
+    const raw = String(input || "").trim();
+    const m = raw.match(/^(.*)<([^>]+)>$/);
+    if (m) {
+        const name = m[1].trim().replace(/^"|"$/g, "");
+        const email = m[2].trim();
+        return { name: name || undefined, email };
+    }
+    return { email: raw };
+}
+async function sendViaBrevoApi(params) {
+    const apiKey = String(env.BREVO_API_KEY || "").trim();
+    if (!apiKey)
+        throw new Error("BREVO_API_KEY is not configured on server");
+    const from = parseFromHeader(params.from);
+    const toEmail = String(params.to || "").trim();
+    const toName = toEmail.split("@")[0] || "User";
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "api-key": apiKey,
+            },
+            body: JSON.stringify({
+                sender: from.name ? { name: from.name, email: from.email } : { email: from.email },
+                to: [{ email: toEmail, name: toName }],
+                subject: params.subject,
+                htmlContent: params.html,
+            }),
+            signal: controller.signal,
+        });
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(`Brevo API error ${response.status}: ${text || response.statusText}`);
+        }
+        return {
+            messageId: text || "",
+            response: `brevo:${response.status}`,
+            accepted: [toEmail.toLowerCase()],
+            rejected: [],
+        };
+    }
+    finally {
+        clearTimeout(timer);
+    }
+}
 export async function sendOtpEmail(email, otp, purpose, options) {
     const channel = options?.channel === "admin" ? "admin" : "user";
     const profile = smtpProfile(channel);
@@ -66,6 +116,14 @@ export async function sendOtpEmail(email, otp, purpose, options) {
       <p style="margin:0; color:#475569;">If you did not request this, you can ignore this email.</p>
     </div>
   `;
+    if (env.BREVO_API_KEY) {
+        return sendViaBrevoApi({
+            from: profile.from || profile.user,
+            to: email,
+            subject,
+            html,
+        });
+    }
     let info;
     try {
         info = await transport.sendMail({
@@ -114,6 +172,14 @@ export async function sendAdminPasswordEmail(email, password) {
       <p style="margin:0; color:#475569;">If you did not request this, contact GigBit support.</p>
     </div>
   `;
+    if (env.BREVO_API_KEY) {
+        return sendViaBrevoApi({
+            from: profile.from || profile.user,
+            to: email,
+            subject,
+            html,
+        });
+    }
     let info;
     try {
         info = await transport.sendMail({
