@@ -1164,6 +1164,7 @@
       deleteReqItems: []
     };
     let commissionRefreshTimer = null;
+    let warmupInFlight = null;
     const HISTORY_PREVIEW_COUNT = 3;
     const DELETE_REQ_PREVIEW_COUNT = 2;
 
@@ -1542,6 +1543,14 @@
       return data;
     }
 
+    async function warmApi() {
+      if (warmupInFlight) return warmupInFlight;
+      warmupInFlight = fetch(`${state.apiBase}/health`, { cache: "no-store" })
+        .catch(() => {})
+        .finally(() => { warmupInFlight = null; });
+      return warmupInFlight;
+    }
+
     function showPortal(show) {
       document.documentElement.classList.toggle("has-admin-token", !!show);
       $("loginOverlay").classList.toggle("hidden", show);
@@ -1755,6 +1764,7 @@
       $("loginErr").style.color = "#ffb4b4";
       $("loginErr").textContent = "";
       try {
+        await warmApi();
         const out = await api("/admin/login", {
           method: "POST",
           body: JSON.stringify({
@@ -1794,6 +1804,7 @@
       }
       $("loginErr").textContent = "";
       try {
+        await warmApi();
         await api("/admin/password/request-otp", {
           method: "POST",
           body: JSON.stringify({ username })
@@ -1811,6 +1822,7 @@
       $("forgotPwdErr").style.color = "#ffb4b4";
       $("forgotPwdErr").textContent = "";
       try {
+        await warmApi();
         await api("/admin/password/verify-otp-change", {
           method: "POST",
           body: JSON.stringify({
@@ -2170,7 +2182,7 @@
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),
         ]);
-      }, 5000);
+      }, 2500);
     }
 
     function resetPlatformForm() {
@@ -2402,6 +2414,7 @@
 
     setTheme(state.theme);
     setLang(state.lang);
+    warmApi();
     syncThemeTooltips(document);
     syncExpandButtons();
     $("adminUsername").value = "Admin1";
@@ -2422,4 +2435,5 @@
   </script>
 </body>
 </html>
+
 

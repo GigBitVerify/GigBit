@@ -32,6 +32,14 @@ class ApiClient {
   static const Duration _timeout = Duration(seconds: 12);
   static const Duration _otpTimeout = Duration(seconds: 40);
 
+  Future<void> warmup({Duration timeout = const Duration(seconds: 8)}) async {
+    try {
+      await http.get(Uri.parse('$baseUrl/health')).timeout(timeout);
+    } catch (_) {
+      // Ignore warmup failures; real calls will surface actionable errors.
+    }
+  }
+
   Map<String, String> get _headers {
     final headers = <String, String>{'Content-Type': 'application/json'};
     if (token != null) {
