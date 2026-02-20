@@ -41,8 +41,11 @@ String? sanitizeApiBaseUrl(String? url) {
     // the launcher (without --dart-define).
     final host = uri.host;
     final isCommonLan = RegExp(r'^(10\.|192\.168\.)').hasMatch(host);
+    final isSecurePublicUrl = uri.scheme.toLowerCase() == 'https';
 
-    if (!allowedHosts.contains(host) && !isCommonLan) return null;
+    if (!allowedHosts.contains(host) && !isCommonLan && !isSecurePublicUrl) {
+      return null;
+    }
   }
 
   return v;

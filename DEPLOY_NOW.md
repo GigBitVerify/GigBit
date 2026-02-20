@@ -4,10 +4,10 @@ This is the fastest path to get web + APK globally accessible.
 
 ## A) One-time in this repo
 
-1. Build APK (optional but recommended release build):
+1. Build APK for production backend:
 ```bat
 cd app\frontend\flutter_app
-flutter build apk --release
+flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-API-DOMAIN
 cd ..\..\..
 ```
 
@@ -61,6 +61,9 @@ git push
 2. Click `Download APK`:
 - should download `GigBit.apk`
 3. Open admin page and verify API calls work.
+
+Note:
+- If you rebuild APK, always include `--dart-define=API_BASE_URL=https://YOUR-API-DOMAIN`.
 
 ## E) Update flow (every release)
 

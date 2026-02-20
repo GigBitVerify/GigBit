@@ -1,0 +1,50 @@
+services:
+  - type: redis
+    name: gigbit-redis
+    ipAllowList: []
+    plan: free
+
+  - type: web
+    name: gigbit-api
+    runtime: node
+    rootDir: web/backend/api
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 4000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OTP_IN_RESPONSE
+        value: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gigbit-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: gigbit-redis
+          property: connectionString
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+databases:
+  - name: gigbit-postgres
+    databaseName: gigbit
+    user: gigbit
+    plan: free
