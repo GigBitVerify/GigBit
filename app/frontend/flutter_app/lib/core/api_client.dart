@@ -28,13 +28,14 @@ class ApiClient {
 
   final String baseUrl;
   final String? token;
+  static final http.Client _httpClient = http.Client();
 
   static const Duration _timeout = Duration(seconds: 12);
   static const Duration _otpTimeout = Duration(seconds: 40);
 
   Future<void> warmup({Duration timeout = const Duration(seconds: 8)}) async {
     try {
-      await http.get(Uri.parse('$baseUrl/health')).timeout(timeout);
+      await _httpClient.get(Uri.parse('$baseUrl/health')).timeout(timeout);
     } catch (_) {
       // Ignore warmup failures; real calls will surface actionable errors.
     }
@@ -636,7 +637,9 @@ class ApiClient {
     Duration timeout = _timeout,
   }) async {
     try {
-      return await http.get(Uri.parse(url), headers: _headers).timeout(timeout);
+      return await _httpClient
+          .get(Uri.parse(url), headers: _headers)
+          .timeout(timeout);
     } on TimeoutException {
       if (allowResolve) {
         final r = await _retryWithResolvedBase(url, timeout: timeout);
@@ -723,11 +726,11 @@ class ApiClient {
     final retryUrl = '$resolved$pathAndQuery';
     try {
       if (body == null) {
-        return await http
+        return await _httpClient
             .get(Uri.parse(retryUrl), headers: _headers)
             .timeout(timeout);
       }
-      return await http
+      return await _httpClient
           .post(
             Uri.parse(retryUrl),
             headers: _headers,

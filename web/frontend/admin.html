@@ -2173,6 +2173,7 @@
     function startCommissionLiveRefresh() {
       if (commissionRefreshTimer) clearInterval(commissionRefreshTimer);
       commissionRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
         if (!state.token) return;
         Promise.all([
           loadCommissionShare().catch(() => {}),
@@ -2182,7 +2183,7 @@
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),
         ]);
-      }, 2500);
+      }, 4000);
     }
 
     function resetPlatformForm() {
@@ -2397,6 +2398,18 @@
       const inNotif = $("notifWrap")?.contains(t);
       const inProfile = $("profileWrap")?.contains(t);
       if (!inNotif && !inProfile) closeHeaderMenus();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && state.token) {
+        Promise.all([
+          loadCommissionShare().catch(() => {}),
+          loadAdminActivityNotifications().catch(() => {}),
+          loadWithdrawals().catch(() => {}),
+          loadDeleteRequests().catch(() => {}),
+          loadLoans().catch(() => {}),
+          loadClaims().catch(() => {}),
+        ]);
+      }
     });
     $("loanTermsOverlay").addEventListener("click", (e) => {
       if (e.target === $("loanTermsOverlay")) showLoanTermsPopup(false);

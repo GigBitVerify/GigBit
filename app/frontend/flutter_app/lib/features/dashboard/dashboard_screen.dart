@@ -1656,22 +1656,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     try {
-      final me = await _api.fetchMe();
-      final summary = await _api.fetchSummary();
-      final catalog = await _api.fetchPlatformCatalog();
+      await _api.warmup();
+      final meFuture = _api.fetchMe();
+      final summaryFuture = _api.fetchSummary();
+      final catalogFuture = _api.fetchPlatformCatalog();
+      final transactionsFuture = _api.fetchTransactions();
+      final contributionsFuture = _api.fetchContributions();
+      final insuranceClaimsFuture = _api.fetchInsuranceClaims();
+      final loanRequestsFuture = _api.fetchLoanRequests();
+      final platformsFuture = _api.fetchUserPlatforms();
+      final loanFuture = _api.fetchLoanEligibility();
+      final purchasesFuture = _api.fetchSubscriptionPurchases();
+      final expensesFuture = _api.fetchExpenses();
+
+      final me = await meFuture;
+      final subscriptionFuture = _api.fetchSubscription(me['id'].toString());
+
+      final summary = await summaryFuture;
+      final catalog = await catalogFuture;
       _lastCatalogSignature = _catalogSignature(catalog);
       _applyPlatformCatalog(catalog);
-      final transactions = await _api.fetchTransactions();
-      final contributions = await _api.fetchContributions();
-      final insuranceClaims = await _api.fetchInsuranceClaims();
-      final loanRequests = await _api.fetchLoanRequests();
-      final platforms = await _api.fetchUserPlatforms();
+      final transactions = await transactionsFuture;
+      final contributions = await contributionsFuture;
+      final insuranceClaims = await insuranceClaimsFuture;
+      final loanRequests = await loanRequestsFuture;
+      final platforms = await platformsFuture;
       _syncIntegrationFlags(platforms);
-      final loan = await _api.fetchLoanEligibility();
-      final subscription = await _api.fetchSubscription(me['id'].toString());
+      final loan = await loanFuture;
+      final subscription = await subscriptionFuture;
       await _notifyPlanExpiryNotifications(subscription);
-      final purchases = await _api.fetchSubscriptionPurchases();
-      var expenses = await _api.fetchExpenses();
+      final purchases = await purchasesFuture;
+      var expenses = await expensesFuture;
 
       bool hasTodayKind(List<dynamic> list, String kind) {
         final nowIst = _toIst(DateTime.now());
