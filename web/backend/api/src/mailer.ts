@@ -1,4 +1,5 @@
 import nodemailer, { type SentMessageInfo } from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
 import { env } from "./config.js";
 
 export type OtpMailResult = {
@@ -31,7 +32,7 @@ function getTransport(channel: OtpMailChannel) {
     return null;
   }
 
-  return nodemailer.createTransport({
+  const options: SMTPTransport.Options = {
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_PORT === 465,
@@ -42,7 +43,11 @@ function getTransport(channel: OtpMailChannel) {
       user: profile.user,
       pass: profile.pass,
     },
-  });
+  };
+  // Render instances may not have working outbound IPv6 to Gmail SMTP.
+  // Force IPv4 so OTP delivery remains reliable.
+  (options as any).family = 4;
+  return nodemailer.createTransport(options);
 }
 
 export async function sendOtpEmail(

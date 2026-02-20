@@ -19,7 +19,7 @@ function getTransport(channel) {
     if (!env.SMTP_HOST || !profile.user || !profile.pass) {
         return null;
     }
-    return nodemailer.createTransport({
+    const options = {
         host: env.SMTP_HOST,
         port: env.SMTP_PORT,
         secure: env.SMTP_PORT === 465,
@@ -30,7 +30,11 @@ function getTransport(channel) {
             user: profile.user,
             pass: profile.pass,
         },
-    });
+    };
+    // Render instances may not have working outbound IPv6 to Gmail SMTP.
+    // Force IPv4 so OTP delivery remains reliable.
+    options.family = 4;
+    return nodemailer.createTransport(options);
 }
 export async function sendOtpEmail(email, otp, purpose, options) {
     const channel = options?.channel === "admin" ? "admin" : "user";
