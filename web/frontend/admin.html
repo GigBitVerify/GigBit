@@ -114,6 +114,45 @@
       cursor: pointer;
       position: relative;
     }
+    .action-icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 900;
+      position: relative;
+      line-height: 1;
+    }
+    #langBtn::after {
+      content: attr(data-lang);
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(14, 26, 56, .94);
+      color: #fff;
+      font-size: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      letter-spacing: .02em;
+    }
+    body.light #langBtn::after {
+      background: #0f172a;
+      color: #fff;
+      border-color: rgba(15,23,42,.25);
+    }
     [data-tip] { position: relative; }
     [data-tip]::after {
       content: attr(data-tip);
@@ -868,6 +907,7 @@
       .right {
         width: 100%;
         justify-content: flex-start;
+        gap: 6px;
       }
       .toggle-shell {
         width: 100%;
@@ -920,10 +960,37 @@
         width: min(96vw, 320px);
       }
     }
+    @media (max-width: 760px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .commission-grid { grid-template-columns: 1fr; }
+      .panel { padding: 10px; }
+      .section-title { font-size: 18px; }
+      .approval-row,
+      .approval-list-insurance .approval-row {
+        font-size: 11px;
+      }
+      .approval-email {
+        font-size: 11px;
+      }
+      .commission-platform-line {
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .deletion-meta {
+        font-size: 10px;
+      }
+      .icon-menu-btn,
+      .action-icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+      }
+    }
     @media (max-width: 380px) {
       .section-title {
         font-size: 17px;
       }
+      .stats { grid-template-columns: 1fr; }
       .stat .v {
         font-size: 20px;
       }
@@ -942,8 +1009,8 @@
         <span>GigBit Admin</span>
       </div>
       <div class="right">
-        <div class="toggle-shell"><span class="toggle-label">Lang</span><button class="toggle-btn" id="langBtn">EN</button></div>
-        <div class="toggle-shell"><span class="toggle-label">Mode</span><button class="toggle-btn" id="themeBtn">Light</button></div>
+        <button class="action-icon-btn" id="langBtn" data-lang="EN" data-tip="Language" aria-label="Language">🌐</button>
+        <button class="action-icon-btn" id="themeBtn" data-tip="Theme" aria-label="Theme">🌙</button>
         <div class="menu-wrap hidden" id="notifWrap">
           <button class="icon-menu-btn" id="notifBtn" data-tip="Notifications" aria-label="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1333,16 +1400,16 @@
     function setTheme(next) {
       state.theme = next;
       document.body.classList.toggle("light", next === "light");
-      $("themeBtn").textContent = next === "light" ? "Dark" : "Light";
-      $("themeBtn").classList.add("active");
+      $("themeBtn").textContent = next === "light" ? "☀️" : "🌙";
+      $("themeBtn").setAttribute("data-tip", next === "light" ? "Light mode" : "Dark mode");
       localStorage.setItem("gigbit_web_theme", next);
     }
 
     function setLang(next) {
       state.lang = next;
       const orderLabel = { en: "EN", hi: "हि", mr: "मर" };
-      $("langBtn").textContent = orderLabel[next] || "EN";
-      $("langBtn").classList.add("active");
+      $("langBtn").setAttribute("data-lang", orderLabel[next] || "EN");
+      $("langBtn").setAttribute("data-tip", `Language: ${orderLabel[next] || "EN"}`);
       localStorage.setItem("gigbit_web_lang", next);
       const d = dict[next] || dict.en;
       Object.keys(d).forEach((k) => { const el = $(k); if (el) el.textContent = d[k]; });
