@@ -5477,7 +5477,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 _tr3(
-                    'Rentis disabled (Vehicle is not rented)',
+                    'Rent is disabled (Vehicle is not rented)',
                     'किराया बंद है (वाहन किराए पर नहीं है)।',
                     'भाडे बंद आहे (वाहन भाड्याने घेतलेले नाही).'),
                 style: TextStyle(
