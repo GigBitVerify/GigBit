@@ -5948,6 +5948,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return sum + _toDouble(m['amount']);
       },
     );
+    final claimedTotal = _insuranceClaims.fold<double>(
+      0,
+      (sum, c) {
+        final m =
+            c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map);
+        final status = (m['status'] ?? '').toString().trim().toLowerCase();
+        if (status != 'approved') return sum;
+        return sum + _toDouble(m['claim_amount']);
+      },
+    );
     return [
       _glassCard(
         child: Column(
@@ -6109,6 +6119,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Total: Rs ${_formatWithIndianCommas(contributionTotal)}',
                 'कुल: Rs ${_formatWithIndianCommas(contributionTotal)}',
                 'एकूण: Rs ${_formatWithIndianCommas(contributionTotal)}',
+              ),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.84),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _tr3(
+                'Claimed: Rs ${_formatWithIndianCommas(claimedTotal)}',
+                'क्लेम्ड: Rs ${_formatWithIndianCommas(claimedTotal)}',
+                'क्लेम्ड: Rs ${_formatWithIndianCommas(claimedTotal)}',
               ),
               style: TextStyle(
                 fontWeight: FontWeight.w800,
