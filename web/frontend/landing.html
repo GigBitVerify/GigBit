@@ -56,6 +56,7 @@
       font-size: 30px;
       font-weight: 900;
       letter-spacing: .3px;
+      white-space: nowrap;
     }
     .brand img {
       width: 46px;
@@ -64,37 +65,48 @@
       box-shadow: 0 10px 20px rgba(0, 0, 0, .25);
     }
     .right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .toggle-shell {
+    .action-icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.06);
-      border-radius: 999px;
-      padding: 6px 8px 6px 6px;
-      backdrop-filter: blur(8px);
-    }
-    .toggle-label {
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .05em;
-      color: var(--muted);
-      text-transform: uppercase;
-      padding-left: 4px;
-    }
-    .toggle-btn {
-      border: 0;
-      border-radius: 999px;
+      justify-content: center;
       cursor: pointer;
-      padding: 7px 12px;
-      font-weight: 800;
-      color: var(--text);
-      background: transparent;
+      font-size: 0;
+      line-height: 1;
+      position: relative;
     }
-    .toggle-btn.active {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #07241a;
-      box-shadow: 0 8px 18px rgba(22, 199, 132, .38);
+    .action-icon-btn svg {
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+    }
+    #langBtn::after {
+      content: attr(data-lang);
+      position: absolute;
+      right: -4px;
+      bottom: -4px;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(14, 26, 56, .94);
+      color: #fff;
+      font-size: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 3px;
+      letter-spacing: .02em;
+    }
+    body.light #langBtn::after {
+      background: #0f172a;
+      color: #fff;
+      border-color: rgba(15,23,42,.25);
     }
     .btn {
       border: 1px solid var(--line);
@@ -381,8 +393,8 @@
     }
     @media (max-width: 760px) {
       .wrap { padding: 14px 12px 24px; }
-      .nav { align-items: flex-start; flex-direction: column; gap: 10px; }
-      .right { width: 100%; justify-content: flex-start; }
+      .nav { align-items: center; flex-direction: row; justify-content: space-between; gap: 6px; }
+      .right { width: auto; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; }
       .headline { font-size: clamp(30px, 11vw, 44px); line-height: 1.02; }
       .sub { max-width: none; margin-top: 12px; }
       .actions .btn { width: 100%; justify-content: center; }
@@ -393,12 +405,28 @@
       .step { min-height: 0; }
     }
     @media (max-width: 460px) {
-      .brand { font-size: 22px; }
-      .brand img { width: 36px; height: 36px; border-radius: 10px; }
-      .toggle-shell { width: 100%; justify-content: space-between; }
+      .brand { font-size: 18px; gap: 6px; }
+      .brand img { width: 26px; height: 26px; border-radius: 8px; }
+      .action-icon-btn { width: 30px; height: 30px; border-radius: 8px; }
+      .right .btn {
+        padding: 7px 10px;
+        font-size: 12px;
+        border-radius: 9px;
+        white-space: nowrap;
+      }
       .section-heading { line-height: 1.1; }
       .section-desc { font-size: 14px; }
       .feature h3 { font-size: 18px; }
+    }
+    @media (max-width: 380px) {
+      .brand { font-size: 16px; }
+      .brand img { width: 24px; height: 24px; }
+      .action-icon-btn { width: 28px; height: 28px; }
+      .right { gap: 4px; }
+      .right .btn {
+        padding: 6px 8px;
+        font-size: 11px;
+      }
     }
   </style>
 </head>
@@ -410,14 +438,16 @@
         <span>GigBit</span>
       </div>
       <div class="right">
-        <div class="toggle-shell">
-          <span class="toggle-label">Lang</span>
-          <button class="toggle-btn" id="langBtn">EN</button>
-        </div>
-        <div class="toggle-shell">
-          <span class="toggle-label">Mode</span>
-          <button class="toggle-btn" id="themeBtn">Light</button>
-        </div>
+        <button class="action-icon-btn" id="langBtn" data-lang="EN" aria-label="Language">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 12H21M12 3C8.5 6.2 8.5 17.8 12 21M12 3C15.5 6.2 15.5 17.8 12 21M4.8 7.5H19.2M4.8 16.5H19.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="action-icon-btn" id="themeBtn" aria-label="Theme">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3A6.8 6.8 0 0 0 21 12.8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
         <a class="btn" href="admin.html" id="adminBtn">Admin Access</a>
       </div>
     </header>
@@ -753,16 +783,21 @@
     function setTheme(next) {
       theme = next;
       document.body.classList.toggle("light", theme === "light");
-      themeBtn.textContent = theme === "light" ? "Dark" : "Light";
-      themeBtn.classList.add("active");
+      themeBtn.innerHTML = theme === "light"
+        ? `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12 2.8V5.2M12 18.8V21.2M21.2 12H18.8M5.2 12H2.8M18.4 5.6L16.7 7.3M7.3 16.7L5.6 18.4M18.4 18.4L16.7 16.7M7.3 7.3L5.6 5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3A6.8 6.8 0 0 0 21 12.8Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>`;
       localStorage.setItem("gigbit_web_theme", theme);
     }
 
     function setLang(next) {
       lang = next;
       const orderLabel = { en: "EN", hi: "हि", mr: "मर" };
-      langBtn.textContent = orderLabel[lang] || "EN";
-      langBtn.classList.add("active");
+      langBtn.setAttribute("data-lang", orderLabel[lang] || "EN");
       localStorage.setItem("gigbit_web_lang", lang);
       const d = dict[lang] || dict.en;
       Object.keys(d).forEach((k) => {
