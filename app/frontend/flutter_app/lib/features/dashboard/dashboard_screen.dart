@@ -154,6 +154,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double? _taxFabTop;
   bool _taxHistoryPanelOpen = false;
   bool _insuranceClaimsExpanded = false;
+  bool _insuranceContributionsExpanded = false;
   bool _loanClaimsExpanded = false;
   bool _taxChatInputUnlocked = false;
   int _taxInputTapBlockedUntilMs = 0;
@@ -5935,6 +5936,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final insuranceVisible = _insuranceClaimsExpanded
         ? _latestFirstClaims(_insuranceClaims)
         : _latestFirstClaims(_insuranceClaims).take(1).toList();
+    final contributionsSorted = _latestFirstClaims(_contributions);
+    final contributionsVisible = _insuranceContributionsExpanded
+        ? contributionsSorted
+        : contributionsSorted.take(1).toList();
+    final contributionTotal = _contributions.fold<double>(
+      0,
+      (sum, c) {
+        final m =
+            c is Map<String, dynamic> ? c : Map<String, dynamic>.from(c as Map);
+        return sum + _toDouble(m['amount']);
+      },
+    );
     return [
       _glassCard(
         child: Column(
@@ -6055,6 +6068,95 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 (m['status'] ?? '').toString()),
                             style: const TextStyle(fontWeight: FontWeight.w800),
                           ),
+                        );
+                      }).toList(),
+                    ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+      _glassCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _tr3('Contributions', 'कॉन्ट्रिब्यूशन्स', 'कॉन्ट्रिब्यूशन्स'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => setState(() => _insuranceContributionsExpanded =
+                      !_insuranceContributionsExpanded),
+                  tooltip: _insuranceContributionsExpanded
+                      ? _tr3('Show less', 'कम दिखाएं', 'कमी दाखवा')
+                      : _tr3('Show all', 'सभी दिखाएं', 'सर्व दाखवा'),
+                  icon: AnimatedRotation(
+                    turns: _insuranceContributionsExpanded ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeInOutCubic,
+                    child: const Icon(Icons.keyboard_arrow_down),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _tr3(
+                'Total: Rs ${_formatWithIndianCommas(contributionTotal)}',
+                'कुल: Rs ${_formatWithIndianCommas(contributionTotal)}',
+                'एकूण: Rs ${_formatWithIndianCommas(contributionTotal)}',
+              ),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.84),
+              ),
+            ),
+            const SizedBox(height: 6),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              child: contributionsVisible.isEmpty
+                  ? Text(
+                      _tr3(
+                        'No contributions yet',
+                        'अभी कोई योगदान नहीं है',
+                        'अजून कोणतेही योगदान नाही',
+                      ),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  : Column(
+                      children: contributionsVisible.map((c) {
+                        final m = c is Map<String, dynamic>
+                            ? c
+                            : Map<String, dynamic>.from(c as Map);
+                        return ListTile(
+                          dense: true,
+                          visualDensity:
+                              const VisualDensity(horizontal: 0, vertical: -4),
+                          minVerticalPadding: 0,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            _tr3(
+                              'Amount: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                              'राशि: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                              'रक्कम: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(_dateTimeLabel(m['created_at'])),
                         );
                       }).toList(),
                     ),
