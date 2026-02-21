@@ -59,6 +59,7 @@
       font-size: 28px;
       font-weight: 900;
       letter-spacing: .2px;
+      white-space: nowrap;
     }
     .brand img {
       width: 42px;
@@ -904,25 +905,24 @@
     @media (max-width: 560px) {
       .wrap { width: 100%; padding: 10px 8px 20px; }
       .top {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-      }
-      .right {
-        width: 100%;
-        justify-content: flex-start;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
         gap: 6px;
       }
-      .toggle-shell {
-        width: 100%;
-        justify-content: space-between;
+      .right {
+        width: auto;
+        justify-content: flex-end;
+        gap: 5px;
+        flex-wrap: nowrap;
       }
       .brand {
-        font-size: 21px;
+        font-size: 18px;
+        gap: 6px;
       }
       .brand img {
-        width: 32px;
-        height: 32px;
+        width: 26px;
+        height: 26px;
       }
       .platform-grid { grid-template-columns: 1fr; }
       .commission-head-row {
@@ -985,12 +985,25 @@
       }
       .icon-menu-btn,
       .action-icon-btn {
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
       }
     }
     @media (max-width: 380px) {
+      .top { gap: 4px; }
+      .brand {
+        font-size: 16px;
+      }
+      .brand img {
+        width: 24px;
+        height: 24px;
+      }
+      .icon-menu-btn,
+      .action-icon-btn {
+        width: 28px;
+        height: 28px;
+      }
       .section-title {
         font-size: 17px;
       }
