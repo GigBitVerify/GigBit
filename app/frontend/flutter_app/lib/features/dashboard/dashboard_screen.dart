@@ -412,7 +412,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   double get _walletBalance {
-    return _platformEarningsByKey.values.fold<double>(0.0, (a, b) => a + b);
+    final totalEarnings = _toDouble(_summary['totalEarnings']);
+    final totalWithdrawn = _toDouble(_summary['totalWithdrawn']);
+    final computed = totalEarnings - totalWithdrawn;
+    if (computed >= 0) return computed;
+    return 0;
   }
 
   Map<String, double> get _platformBreakdown {
