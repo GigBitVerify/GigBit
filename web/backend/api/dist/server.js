@@ -1849,14 +1849,16 @@ async function getWithdrawalLimitState(userId) {
 }
 async function getSummary(userId) {
     await ensureMonthlyInsuranceAutoDebit(userId);
-    const e = await pgPool.query(`SELECT COALESCE(SUM(t.amount),0) AS total, COUNT(*)::int AS count
-     FROM transactions t
-     JOIN integration_platform_catalog c ON lower(c.slug) = lower(t.platform) AND c.enabled = TRUE
-     WHERE t.user_id = $1`, [userId]);
-    const w = await pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM withdrawals WHERE user_id = $1", [userId]);
-    const i = await pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM insurance_contributions WHERE user_id = $1", [userId]);
-    const x = await pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM expenses WHERE user_id = $1", [userId]);
-    const wdLimit = await getWithdrawalLimitState(userId);
+    const [e, w, i, x, wdLimit] = await Promise.all([
+        pgPool.query(`SELECT COALESCE(SUM(t.amount),0) AS total, COUNT(*)::int AS count
+       FROM transactions t
+       JOIN integration_platform_catalog c ON lower(c.slug) = lower(t.platform) AND c.enabled = TRUE
+       WHERE t.user_id = $1`, [userId]),
+        pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM withdrawals WHERE user_id = $1", [userId]),
+        pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM insurance_contributions WHERE user_id = $1", [userId]),
+        pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM expenses WHERE user_id = $1", [userId]),
+        getWithdrawalLimitState(userId),
+    ]);
     return {
         totalEarnings: Number(e.rows[0].total),
         totalWithdrawn: Number(w.rows[0].total),
@@ -2276,85 +2278,87 @@ app.get("/admin/activity-logs", requireAdminKey, async (req, res) => {
     res.json({ items: r.rows });
 });
 app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
-    const r = await pgPool.query(`SELECT
-      w.id,
-      w.user_id,
-      w.amount,
-      w.insurance_contribution,
-      w.service_fee,
-      w.total_fee,
-      w.user_receives,
-      w.created_at,
-      u.email,
-      COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
-      u.username
-     FROM withdrawals w
-     LEFT JOIN users u ON u.id = w.user_id
-     ORDER BY w.created_at DESC
-     LIMIT 1000`);
-    const totals = await pgPool.query(`SELECT
-      COALESCE(SUM(amount),0) AS total_withdrawn,
-      COALESCE(SUM(insurance_contribution),0) AS total_insurance,
-      COALESCE(SUM(service_fee),0) AS total_fees,
-      (SELECT COUNT(*)::int FROM users) AS total_users,
-      (
-        WITH wd_used AS (
-          SELECT w.user_id, COUNT(*)::int AS used
-          FROM withdrawals w
-          WHERE COALESCE(w.user_receives,0) > 0
-          GROUP BY w.user_id
-        ),
-        purchases AS (
-          SELECT
-            sp.user_id,
-            COUNT(*)::int AS purchase_count,
-            COALESCE(SUM(
-              2 * GREATEST(
-                0,
-                LEAST(
-                  30,
-                  ((timezone('Asia/Kolkata', NOW())::date - timezone('Asia/Kolkata', sp.created_at)::date) + 1)
+    const [r, totals, claimsStats] = await Promise.all([
+        pgPool.query(`SELECT
+        w.id,
+        w.user_id,
+        w.amount,
+        w.insurance_contribution,
+        w.service_fee,
+        w.total_fee,
+        w.user_receives,
+        w.created_at,
+        u.email,
+        COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
+        u.username
+       FROM withdrawals w
+       LEFT JOIN users u ON u.id = w.user_id
+       ORDER BY w.created_at DESC
+       LIMIT 1000`),
+        pgPool.query(`SELECT
+        COALESCE(SUM(amount),0) AS total_withdrawn,
+        COALESCE(SUM(insurance_contribution),0) AS total_insurance,
+        COALESCE(SUM(service_fee),0) AS total_fees,
+        (SELECT COUNT(*)::int FROM users) AS total_users,
+        (
+          WITH wd_used AS (
+            SELECT w.user_id, COUNT(*)::int AS used
+            FROM withdrawals w
+            WHERE COALESCE(w.user_receives,0) > 0
+            GROUP BY w.user_id
+          ),
+          purchases AS (
+            SELECT
+              sp.user_id,
+              COUNT(*)::int AS purchase_count,
+              COALESCE(SUM(
+                2 * GREATEST(
+                  0,
+                  LEAST(
+                    30,
+                    ((timezone('Asia/Kolkata', NOW())::date - timezone('Asia/Kolkata', sp.created_at)::date) + 1)
+                  )
                 )
-              )
-            ),0)::int AS accrued_total,
-            COALESCE(SUM(
-              CASE
-                WHEN (timezone('Asia/Kolkata', NOW())::date) BETWEEN timezone('Asia/Kolkata', sp.created_at)::date
-                  AND (timezone('Asia/Kolkata', sp.created_at)::date + 29)
-                THEN 1 ELSE 0
-              END
-            ),0)::int AS active_window_count
-          FROM subscription_purchases sp
-          GROUP BY sp.user_id
-        ),
-        limits AS (
-          SELECT
-            u.id AS user_id,
-            COALESCE(p.active_window_count, 0) AS active_window_count,
-            LEAST(
-              GREATEST(0, COALESCE(p.accrued_total, 0) - COALESCE(wu.used, 0)),
-              GREATEST(0, (COALESCE(p.purchase_count, 0) * 60) - COALESCE(wu.used, 0))
-            )::int AS remaining_limit
-          FROM users u
-          LEFT JOIN purchases p ON p.user_id = u.id
-          LEFT JOIN wd_used wu ON wu.user_id = u.id
-        )
-        SELECT COUNT(*)::int
-        FROM limits l
-        WHERE l.active_window_count > 0 OR l.remaining_limit > 0
-      ) AS total_active_users
-     FROM withdrawals`);
-    const claimsStats = await pgPool.query(`SELECT
-      COUNT(*)::int AS approved_claims_count,
-      COALESCE((
-        SELECT SUM(w.insurance_contribution)
-        FROM withdrawals w
-        WHERE w.user_id IN (
-          SELECT DISTINCT c.user_id
-          FROM insurance_claims c
-          WHERE lower(c.status) = 'approved'
-        )
-      ), 0) AS claimed_insurance_amount`);
+              ),0)::int AS accrued_total,
+              COALESCE(SUM(
+                CASE
+                  WHEN (timezone('Asia/Kolkata', NOW())::date) BETWEEN timezone('Asia/Kolkata', sp.created_at)::date
+                    AND (timezone('Asia/Kolkata', sp.created_at)::date + 29)
+                  THEN 1 ELSE 0
+                END
+              ),0)::int AS active_window_count
+            FROM subscription_purchases sp
+            GROUP BY sp.user_id
+          ),
+          limits AS (
+            SELECT
+              u.id AS user_id,
+              COALESCE(p.active_window_count, 0) AS active_window_count,
+              LEAST(
+                GREATEST(0, COALESCE(p.accrued_total, 0) - COALESCE(wu.used, 0)),
+                GREATEST(0, (COALESCE(p.purchase_count, 0) * 60) - COALESCE(wu.used, 0))
+              )::int AS remaining_limit
+            FROM users u
+            LEFT JOIN purchases p ON p.user_id = u.id
+            LEFT JOIN wd_used wu ON wu.user_id = u.id
+          )
+          SELECT COUNT(*)::int
+          FROM limits l
+          WHERE l.active_window_count > 0 OR l.remaining_limit > 0
+        ) AS total_active_users
+       FROM withdrawals`),
+        pgPool.query(`SELECT
+        COUNT(*)::int AS approved_claims_count,
+        COALESCE((
+          SELECT SUM(w.insurance_contribution)
+          FROM withdrawals w
+          WHERE w.user_id IN (
+            SELECT DISTINCT c.user_id
+            FROM insurance_claims c
+            WHERE lower(c.status) = 'approved'
+          )
+        ), 0) AS claimed_insurance_amount`),
+    ]);
     const totalsRow = totals.rows[0] ?? {};
     const claimsRow = claimsStats.rows[0] ?? {};
     res.json({
@@ -2659,6 +2663,16 @@ async function ensureSchema() {
         "CREATE INDEX IF NOT EXISTS idx_tax_chat_sessions_user_updated_at ON tax_chat_sessions (user_id, updated_at DESC, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_tax_chat_messages_user_created_at ON tax_chat_messages (user_id, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS idx_tax_chat_messages_session_created_at ON tax_chat_messages (session_id, created_at ASC)",
+        "CREATE INDEX IF NOT EXISTS idx_transactions_user_created_at ON transactions (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_withdrawals_user_created_at ON withdrawals (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_withdrawals_created_at ON withdrawals (created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_insurance_contributions_user_created_at ON insurance_contributions (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_insurance_claims_user_created_at ON insurance_claims (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_insurance_claims_status_created_at ON insurance_claims (status, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_loans_user_created_at ON loans (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_loans_status_created_at ON loans (status, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_expenses_user_created_at ON expenses (user_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_platform_earnings_user_created_at ON platform_earnings (user_id, created_at DESC)",
         "CREATE TABLE IF NOT EXISTS account_deletion_requests (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id TEXT NOT NULL, user_email TEXT NOT NULL, reason_code TEXT NOT NULL, reason_text TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), reviewed_at TIMESTAMPTZ, reviewed_by TEXT, admin_note TEXT)",
         "CREATE INDEX IF NOT EXISTS idx_account_deletion_requests_status_created_at ON account_deletion_requests (status, created_at DESC)",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_account_deletion_requests_pending_user_id ON account_deletion_requests (user_id) WHERE status = 'pending'"
