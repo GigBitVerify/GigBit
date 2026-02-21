@@ -6167,21 +6167,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         final m = c is Map<String, dynamic>
                             ? c
                             : Map<String, dynamic>.from(c as Map);
+                        final amountLabel = _tr3(
+                          'Amount : Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                          'राशि : Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                          'रक्कम : Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
+                        );
+                        final dtLabel = _dateTimeLabel(m['created_at']);
                         return ListTile(
                           dense: true,
                           visualDensity:
                               const VisualDensity(horizontal: 0, vertical: -4),
                           minVerticalPadding: 0,
                           contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            _tr3(
-                              'Amount: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
-                              'राशि: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
-                              'रक्कम: Rs ${_formatWithIndianCommas(_toDouble(m['amount']))}',
-                            ),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  amountLabel,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                dtLabel,
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.78),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                          subtitle: Text(_dateTimeLabel(m['created_at'])),
                         );
                       }).toList(),
                     ),
@@ -6293,9 +6312,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: Text(
                             _tr3(
-                              'Amount: Rs ${m['amount'] ?? 0}',
-                              'राशि: Rs ${m['amount'] ?? 0}',
-                              'रक्कम: Rs ${m['amount'] ?? 0}',
+                              'Claimed : Rs ${m['amount'] ?? 0}',
+                              'दावा : Rs ${m['amount'] ?? 0}',
+                              'दावा : Rs ${m['amount'] ?? 0}',
                             ),
                           ),
                           subtitle: Text(_dateTimeLabel(m['created_at'])),
