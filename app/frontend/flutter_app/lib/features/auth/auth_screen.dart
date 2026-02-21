@@ -233,7 +233,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final api = ApiClient(baseUrl: _baseUrl);
-      await api.warmup();
+      api.warmup();
 
       if (!_isRegister) {
         final response = await api.login(
@@ -372,7 +372,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final api = ApiClient(baseUrl: _baseUrl);
-      await api.warmup();
+      api.warmup();
       await api.requestPasswordReset(email: emailController.text.trim());
       if (!mounted) return;
       showTopNotification(context, t('otp_sent_to_email'));

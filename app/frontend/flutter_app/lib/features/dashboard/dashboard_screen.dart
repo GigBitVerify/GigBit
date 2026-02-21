@@ -80,6 +80,7 @@ enum _PlatformLegendSort { connected, disconnected, neverConnected }
 class _DashboardScreenState extends State<DashboardScreen> {
   static const _kDashboardCacheKey = 'dashboard_cache_v1';
   static const Duration _kTabSlideDuration = Duration(milliseconds: 420);
+  static const Duration _kAutoPlatformSyncInterval = Duration(hours: 6);
   static const Map<String, String> _defaultPlatformAssets = {
     'zomato': 'assets/platforms/zomato.png',
     'blinkit': 'assets/platforms/blinkit.png',
@@ -173,6 +174,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _error;
   StreamSubscription<void>? _platformCatalogEventsSub;
   StreamSubscription<Map<String, dynamic>>? _approvalUpdatesSub;
+  Timer? _autoPlatformSyncTimer;
+  bool _autoPlatformSyncInFlight = false;
   String _lastCatalogSignature = '';
 
   Map<String, dynamic> _me = {};
@@ -533,6 +536,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     _approvalUpdatesSub = _api.approvalUpdateEvents().listen((event) {
       _handleApprovalUpdateEvent(event);
+    });
+    _autoPlatformSyncTimer =
+        Timer.periodic(_kAutoPlatformSyncInterval, (_) async {
+      if (!mounted || _autoPlatformSyncInFlight) return;
+      _autoPlatformSyncInFlight = true;
+      try {
+        await _syncAllConnectedPlatformsRandom(notify: false);
+      } finally {
+        _autoPlatformSyncInFlight = false;
+      }
     });
   }
 
@@ -1559,6 +1572,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _taxChatInputFocusNode.dispose();
     _platformCatalogEventsSub?.cancel();
     _approvalUpdatesSub?.cancel();
+    _autoPlatformSyncTimer?.cancel();
     super.dispose();
   }
 
@@ -1656,7 +1670,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     try {
-      await _api.warmup();
+      _api.warmup();
       final meFuture = _api.fetchMe();
       final summaryFuture = _api.fetchSummary();
       final catalogFuture = _api.fetchPlatformCatalog();
@@ -1946,34 +1960,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required _PlatformLegendSort value,
   }) {
     final selected = _integrationSortPriority == value;
-    final borderColor = Theme.of(context).colorScheme.primary.withValues(
-          alpha: selected ? 0.9 : 0.45,
-        );
+    final baseColor = switch (value) {
+      _PlatformLegendSort.connected => const Color(0xFF16C784),
+      _PlatformLegendSort.disconnected => const Color(0xFFFFA000),
+      _PlatformLegendSort.neverConnected => const Color(0xFF94A3B8),
+    };
+    final borderColor = baseColor.withValues(alpha: selected ? 0.96 : 0.72);
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 44),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
         visualDensity: VisualDensity.compact,
         side: BorderSide(
           color: borderColor,
           width: selected ? 1.6 : 1.2,
         ),
         backgroundColor: selected
-            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+            ? baseColor.withValues(alpha: 0.12)
             : Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       onPressed: () => setState(() => _integrationSortPriority = value),
-      child: Text(
-        label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Theme.of(context)
-              .colorScheme
-              .onSurface
-              .withValues(alpha: selected ? 0.92 : 0.76),
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          softWrap: false,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Theme.of(context)
+                .colorScheme
+                .onSurface
+                .withValues(alpha: selected ? 0.92 : 0.8),
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
         ),
       ),
     );
@@ -3695,12 +3717,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return true;
   }
 
-  Future<void> _syncAllConnectedPlatformsRandom() async {
+  Future<void> _syncAllConnectedPlatformsRandom({bool notify = true}) async {
     final connected = _integrationPlatforms
         .where((p) => p.verified && p.isAvailable)
         .toList();
     if (connected.isEmpty) {
-      if (mounted) {
+      if (mounted && notify) {
         showTopNotification(
           context,
           _tr3(
@@ -3726,7 +3748,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
     await _load(showLoader: false);
-    if (mounted && syncedAny) {
+    if (mounted && syncedAny && notify) {
       if (syncedNames.length == 1) {
         showTopNotification(
           context,
@@ -5750,7 +5772,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  flex: 1,
+                  flex: 2,
                   child: _integrationLegendButton(
                     label: _tr3('Disconnected', 'डिस्कनेक्टेड', 'डिस्कनेक्टेड'),
                     value: _PlatformLegendSort.disconnected,
@@ -5758,7 +5780,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  flex: 2,
+                  flex: 1,
                   child: _integrationLegendButton(
                     label: _tr3(
                       'Others',

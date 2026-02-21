@@ -1165,6 +1165,8 @@
     };
     let commissionRefreshTimer = null;
     let warmupInFlight = null;
+    let liveRefreshInFlight = false;
+    const getRequestInFlight = new Map();
     const HISTORY_PREVIEW_COUNT = 3;
     const DELETE_REQ_PREVIEW_COUNT = 2;
 
@@ -1528,19 +1530,35 @@
     }
 
     async function api(path, opts = {}) {
-      const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
-      if (state.token) headers.Authorization = "Bearer " + state.token;
-      const res = await fetch(state.apiBase + path, Object.assign({}, opts, { headers }));
-      const txt = await res.text();
-      const ctype = String(res.headers.get("content-type") || "").toLowerCase();
-      let data = {};
-      if (txt && ctype.includes("application/json")) {
-        data = JSON.parse(txt);
-      } else if (txt && txt.trim().startsWith("<!doctype")) {
-        throw new Error("API URL is incorrect or backend is not updated");
+      const method = String(opts.method || "GET").toUpperCase();
+      const isPlainGet = method === "GET" && !opts.body;
+      const inflightKey = isPlainGet ? `${state.token || ""}|${path}` : "";
+      if (isPlainGet && getRequestInFlight.has(inflightKey)) {
+        return getRequestInFlight.get(inflightKey);
       }
-      if (!res.ok) throw new Error((data && data.message) || "Request failed");
-      return data;
+
+      const requestPromise = (async () => {
+        const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+        if (state.token) headers.Authorization = "Bearer " + state.token;
+        const res = await fetch(state.apiBase + path, Object.assign({}, opts, { headers }));
+        const txt = await res.text();
+        const ctype = String(res.headers.get("content-type") || "").toLowerCase();
+        let data = {};
+        if (txt && ctype.includes("application/json")) {
+          data = JSON.parse(txt);
+        } else if (txt && txt.trim().startsWith("<!doctype")) {
+          throw new Error("API URL is incorrect or backend is not updated");
+        }
+        if (!res.ok) throw new Error((data && data.message) || "Request failed");
+        return data;
+      })();
+
+      if (isPlainGet) {
+        getRequestInFlight.set(inflightKey, requestPromise);
+        requestPromise.finally(() => getRequestInFlight.delete(inflightKey));
+      }
+
+      return requestPromise;
     }
 
     async function warmApi() {
@@ -1764,7 +1782,7 @@
       $("loginErr").style.color = "#ffb4b4";
       $("loginErr").textContent = "";
       try {
-        await warmApi();
+        warmApi().catch(() => {});
         const out = await api("/admin/login", {
           method: "POST",
           body: JSON.stringify({
@@ -1804,7 +1822,7 @@
       }
       $("loginErr").textContent = "";
       try {
-        await warmApi();
+        warmApi().catch(() => {});
         await api("/admin/password/request-otp", {
           method: "POST",
           body: JSON.stringify({ username })
@@ -1822,7 +1840,7 @@
       $("forgotPwdErr").style.color = "#ffb4b4";
       $("forgotPwdErr").textContent = "";
       try {
-        await warmApi();
+        warmApi().catch(() => {});
         await api("/admin/password/verify-otp-change", {
           method: "POST",
           body: JSON.stringify({
@@ -2175,6 +2193,8 @@
       commissionRefreshTimer = setInterval(() => {
         if (document.hidden) return;
         if (!state.token) return;
+        if (liveRefreshInFlight) return;
+        liveRefreshInFlight = true;
         Promise.all([
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
@@ -2182,8 +2202,10 @@
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),
-        ]);
-      }, 4000);
+        ]).finally(() => {
+          liveRefreshInFlight = false;
+        });
+      }, 6000);
     }
 
     function resetPlatformForm() {
@@ -2401,6 +2423,8 @@
     });
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && state.token) {
+        if (liveRefreshInFlight) return;
+        liveRefreshInFlight = true;
         Promise.all([
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
@@ -2408,7 +2432,9 @@
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),
-        ]);
+        ]).finally(() => {
+          liveRefreshInFlight = false;
+        });
       }
     });
     $("loanTermsOverlay").addEventListener("click", (e) => {

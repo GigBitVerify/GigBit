@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import compression from "compression";
 import cors from "cors";
 import express, { type Response } from "express";
 import jwt from "jsonwebtoken";
@@ -12,6 +13,7 @@ import type { AuthRequest } from "./types.js";
 type UserRow = { id: string; email: string; username: string | null; name: string; password_hash: string };
 
 const app = express();
+app.use(compression({ threshold: 1024 }));
 const registerVerifiedMemory = new Map<string, number>();
 const ADMIN_LOGIN_EMAIL = "gigbitaccess@gmail.com";
 const platformCatalogStreamClients = new Set<Response>();

@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import compression from "compression";
 import cors from "cors";
 import express from "express";
 import jwt from "jsonwebtoken";
@@ -8,6 +9,7 @@ import { pgPool, redis } from "./db.js";
 import { signToken } from "./auth.js";
 import { sendOtpEmail } from "./mailer.js";
 const app = express();
+app.use(compression({ threshold: 1024 }));
 const registerVerifiedMemory = new Map();
 const ADMIN_LOGIN_EMAIL = "gigbitaccess@gmail.com";
 const platformCatalogStreamClients = new Set();
