@@ -25,6 +25,9 @@ const envSchema = z.object({
   SMTP_USER_OTP_USER: z.string().optional(),
   SMTP_USER_OTP_PASS: z.string().optional(),
   SMTP_USER_OTP_FROM: z.string().optional(),
+  FCM_PROJECT_ID: z.string().optional(),
+  FCM_CLIENT_EMAIL: z.string().optional(),
+  FCM_PRIVATE_KEY: z.string().optional(),
   BREVO_API_KEY: z.string().optional(),
   OTP_IN_RESPONSE: z.coerce.boolean().default(false),
   // Optional: enables admin-only endpoints (e.g. account deletion approvals).

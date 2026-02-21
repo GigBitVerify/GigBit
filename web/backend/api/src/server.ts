@@ -3,7 +3,7 @@ import compression from "compression";
 import cors from "cors";
 import express, { type Response } from "express";
 import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
+import { createSign, randomUUID } from "node:crypto";
 import { env } from "./config.js";
 import { pgPool, redis } from "./db.js";
 import { signToken } from "./auth.js";
@@ -18,6 +18,189 @@ const registerVerifiedMemory = new Map<string, number>();
 const ADMIN_LOGIN_EMAIL = "gigbitaccess@gmail.com";
 const platformCatalogStreamClients = new Set<Response>();
 const userApprovalStreamClients = new Map<string, Set<Response>>();
+const FCM_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+let cachedFcmAccessToken: { token: string; expiresAtMs: number } | null = null;
+
+function fcmEnabled(): boolean {
+  return Boolean(
+    String(env.FCM_PROJECT_ID ?? "").trim() &&
+      String(env.FCM_CLIENT_EMAIL ?? "").trim() &&
+      String(env.FCM_PRIVATE_KEY ?? "").trim(),
+  );
+}
+
+function base64UrlEncode(input: string): string {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function createGoogleServiceJwt(): string | null {
+  const clientEmail = String(env.FCM_CLIENT_EMAIL ?? "").trim();
+  const rawPrivateKey = String(env.FCM_PRIVATE_KEY ?? "").trim();
+  if (!clientEmail || !rawPrivateKey) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: clientEmail,
+    scope: FCM_SCOPE,
+    aud: FCM_TOKEN_URL,
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const unsigned = `${encodedHeader}.${encodedPayload}`;
+
+  const signer = createSign("RSA-SHA256");
+  signer.update(unsigned);
+  signer.end();
+  const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+  const signature = signer
+    .sign(privateKey)
+    .toString("base64")
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+  return `${unsigned}.${signature}`;
+}
+
+async function getFcmAccessToken(): Promise<string | null> {
+  if (!fcmEnabled()) return null;
+  const now = Date.now();
+  if (cachedFcmAccessToken && cachedFcmAccessToken.expiresAtMs > now + 60_000) {
+    return cachedFcmAccessToken.token;
+  }
+
+  const assertion = createGoogleServiceJwt();
+  if (!assertion) return null;
+
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion,
+  });
+  const response = await fetch(FCM_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!response.ok) {
+    const txt = await response.text().catch(() => "");
+    throw new Error(`FCM token fetch failed (${response.status}): ${txt}`);
+  }
+  const json = (await response.json()) as { access_token?: string; expires_in?: number };
+  const token = String(json.access_token ?? "").trim();
+  if (!token) return null;
+  const expiresIn = Number(json.expires_in ?? 3600);
+  cachedFcmAccessToken = { token, expiresAtMs: now + Math.max(60, expiresIn) * 1000 };
+  return token;
+}
+
+async function disablePushToken(token: string): Promise<void> {
+  await pgPool.query(
+    "UPDATE user_push_tokens SET is_active = FALSE, updated_at = NOW() WHERE token = $1",
+    [token],
+  );
+}
+
+function pushMessageForEvent(
+  eventType: "loan_status" | "insurance_status" | "account_deletion_status",
+  payload: Record<string, unknown>,
+): { title: string; body: string } {
+  if (eventType === "loan_status") {
+    const status = String(payload.status ?? "").trim() || "updated";
+    const amount = Number(payload.amount ?? 0);
+    return {
+      title: "Loan Update",
+      body: `Loan request ${status}${amount > 0 ? ` (Rs ${Math.round(amount)})` : ""}`,
+    };
+  }
+  if (eventType === "insurance_status") {
+    const status = String(payload.status ?? "").trim() || "updated";
+    const claimTypeRaw = String(payload.claimType ?? "").trim().toLowerCase();
+    const claimType =
+      claimTypeRaw === "vehicle_damage"
+        ? "Vehicle Damage"
+        : claimTypeRaw === "product_damage_loss"
+          ? "Product Damage/Loss"
+          : "Insurance";
+    return {
+      title: "Insurance Update",
+      body: `${claimType} claim ${status}`,
+    };
+  }
+  const status = String(payload.status ?? "").trim().toLowerCase();
+  if (status === "approved") {
+    return {
+      title: "Account Deletion",
+      body: "Account deletion approved. Your account will be removed permanently.",
+    };
+  }
+  if (status === "rejected") {
+    return {
+      title: "Account Deletion",
+      body: "Account deletion request was rejected by admin.",
+    };
+  }
+  return { title: "GigBit Update", body: "There is a new account update." };
+}
+
+async function sendPushForUserEvent(
+  userId: string,
+  eventType: "loan_status" | "insurance_status" | "account_deletion_status",
+  payload: Record<string, unknown>,
+): Promise<void> {
+  if (!fcmEnabled()) return;
+  const accessToken = await getFcmAccessToken();
+  if (!accessToken) return;
+
+  const r = await pgPool.query(
+    "SELECT token FROM user_push_tokens WHERE user_id = $1 AND is_active = TRUE ORDER BY updated_at DESC",
+    [userId],
+  );
+  if (!r.rowCount) return;
+
+  const projectId = String(env.FCM_PROJECT_ID ?? "").trim();
+  const { title, body } = pushMessageForEvent(eventType, payload);
+  const endpoint = `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`;
+
+  for (const row of r.rows as Array<{ token: string }>) {
+    const token = String(row.token ?? "").trim();
+    if (!token) continue;
+    const resp = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: {
+          token,
+          notification: { title, body },
+          data: {
+            eventType,
+            userId: String(userId),
+            updatedAt: new Date().toISOString(),
+          },
+          android: { priority: "high" },
+        },
+      }),
+    });
+    if (resp.ok) continue;
+    const errText = await resp.text().catch(() => "");
+    const lower = errText.toLowerCase();
+    if (resp.status === 404 || lower.includes("unregistered") || lower.includes("registration-token-not-registered")) {
+      await disablePushToken(token);
+      continue;
+    }
+    console.warn("FCM send failed", { status: resp.status, userId, eventType, detail: errText });
+  }
+}
 
 // Controls subscription caps and monthly purchase limits.
 // If you add/remove platforms in the app, update this list accordingly.
@@ -59,6 +242,14 @@ function publishUserApprovalUpdate(
     client.write(`event: approval_update\n`);
     client.write(`data: ${data}\n\n`);
   }
+
+  void sendPushForUserEvent(key, eventType, payload).catch((error) => {
+    console.warn("Failed to send user push update", {
+      userId: key,
+      eventType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 const TAX_ASSISTANT_ALLOWED_TERMS = [
@@ -1087,6 +1278,52 @@ app.get("/user/approval-updates/stream", async (req, res) => {
     }
     res.end();
   });
+});
+
+app.post("/user/push-token", async (req, res) => {
+  const userId = (req as AuthRequest).auth?.userId;
+  const token = String(req.body?.token ?? "").trim();
+  const platform = String(req.body?.platform ?? "android").trim().toLowerCase() || "android";
+  if (!userId || !token) {
+    return res.status(400).json({ message: "Invalid token payload", detail: "Invalid token payload" });
+  }
+  await pgPool.query(
+    `INSERT INTO user_push_tokens (user_id, token, platform, is_active, created_at, updated_at)
+     VALUES ($1,$2,$3,TRUE,NOW(),NOW())
+     ON CONFLICT (token) DO UPDATE
+       SET user_id = EXCLUDED.user_id,
+           platform = EXCLUDED.platform,
+           is_active = TRUE,
+           updated_at = NOW()`,
+    [userId, token, platform],
+  );
+  res.json({ message: "Push token saved" });
+});
+
+app.delete("/user/push-token", async (req, res) => {
+  const userId = (req as AuthRequest).auth?.userId;
+  const token = String(req.body?.token ?? "").trim();
+  if (!userId || !token) {
+    return res.status(400).json({ message: "Invalid token payload", detail: "Invalid token payload" });
+  }
+  await pgPool.query(
+    "UPDATE user_push_tokens SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1 AND token = $2",
+    [userId, token],
+  );
+  res.json({ message: "Push token removed" });
+});
+
+app.post("/user/push-token/remove", async (req, res) => {
+  const userId = (req as AuthRequest).auth?.userId;
+  const token = String(req.body?.token ?? "").trim();
+  if (!userId || !token) {
+    return res.status(400).json({ message: "Invalid token payload", detail: "Invalid token payload" });
+  }
+  await pgPool.query(
+    "UPDATE user_push_tokens SET is_active = FALSE, updated_at = NOW() WHERE user_id = $1 AND token = $2",
+    [userId, token],
+  );
+  res.json({ message: "Push token removed" });
 });
 
 app.post("/platforms/connect", async (req, res) => {
@@ -3270,6 +3507,7 @@ async function ensureSchema(): Promise<void> {
     "CREATE TABLE IF NOT EXISTS password_reset_otps (email TEXT PRIMARY KEY, otp TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS profile_password_verifications (token UUID PRIMARY KEY, user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS user_email_change_flows (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, old_email TEXT NOT NULL, new_email TEXT, old_otp TEXT NOT NULL, old_otp_expires_at TIMESTAMPTZ NOT NULL, old_verified BOOLEAN NOT NULL DEFAULT FALSE, new_otp TEXT, new_otp_expires_at TIMESTAMPTZ, new_verified BOOLEAN NOT NULL DEFAULT FALSE, status TEXT NOT NULL DEFAULT 'pending_old', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS user_push_tokens (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, token TEXT NOT NULL UNIQUE, platform TEXT NOT NULL DEFAULT 'android', is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS tax_chat_sessions (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL DEFAULT 'New Chat', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS tax_chat_messages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id " + userIdType + " NOT NULL REFERENCES users(id) ON DELETE CASCADE, question TEXT NOT NULL, answer TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     "ALTER TABLE tax_chat_messages ADD COLUMN IF NOT EXISTS session_id UUID REFERENCES tax_chat_sessions(id) ON DELETE CASCADE",
@@ -3313,6 +3551,7 @@ async function ensureSchema(): Promise<void> {
     "CREATE INDEX IF NOT EXISTS idx_support_tickets_user_created_at ON support_tickets (user_id, created_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_profile_password_verifications_user_expires ON profile_password_verifications (user_id, expires_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_user_email_change_flows_user_created ON user_email_change_flows (user_id, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_user_push_tokens_user_active ON user_push_tokens (user_id, updated_at DESC) WHERE is_active = TRUE",
     "CREATE INDEX IF NOT EXISTS idx_tax_chat_sessions_user_updated_at ON tax_chat_sessions (user_id, updated_at DESC, created_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_tax_chat_messages_user_created_at ON tax_chat_messages (user_id, created_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_tax_chat_messages_session_created_at ON tax_chat_messages (session_id, created_at ASC)",

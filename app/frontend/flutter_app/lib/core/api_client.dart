@@ -346,6 +346,23 @@ class ApiClient {
     return _decode(response);
   }
 
+  Future<void> savePushToken({
+    required String pushToken,
+    String platform = 'android',
+  }) async {
+    await _safePost('$baseUrl/user/push-token', {
+      'token': pushToken,
+      'platform': platform,
+    });
+  }
+
+  Future<void> removePushToken({required String pushToken}) async {
+    final response = await _safePost('$baseUrl/user/push-token/remove', {
+      'token': pushToken,
+    });
+    _decode(response);
+  }
+
   Future<Map<String, dynamic>> submitClaim({
     required String claimType,
     required String incidentDate,

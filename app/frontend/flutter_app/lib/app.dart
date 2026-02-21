@@ -1,8 +1,12 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/app_strings.dart';
+import 'core/api_client.dart';
 import 'core/base_url.dart';
 import 'core/backend_resolver.dart';
 import 'core/device_notification_service.dart';
@@ -32,6 +36,8 @@ class _GigBitAppState extends State<GigBitApp> {
   late String? _token;
   late ThemeMode _themeMode;
   late AppLanguage _language;
+  StreamSubscription<String>? _pushTokenRefreshSub;
+  String? _devicePushToken;
 
   SystemUiOverlayStyle _overlayStyleForThemeMode(ThemeMode mode) {
     final isDarkMode = mode == ThemeMode.dark;
@@ -58,7 +64,50 @@ class _GigBitAppState extends State<GigBitApp> {
     _themeMode = widget.initialThemeMode;
     SystemChrome.setSystemUIOverlayStyle(_overlayStyleForThemeMode(_themeMode));
     DeviceNotificationService.init();
+    _initPushNotifications();
     _restoreSession();
+  }
+
+  Future<void> _initPushNotifications() async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      _devicePushToken = await messaging.getToken();
+      await _syncPushTokenToBackend();
+      _pushTokenRefreshSub = messaging.onTokenRefresh.listen((token) async {
+        _devicePushToken = token.trim();
+        await _syncPushTokenToBackend();
+      });
+    } catch (_) {
+      // Ignore push setup failures so app features continue to work.
+    }
+  }
+
+  Future<void> _syncPushTokenToBackend() async {
+    final authToken = _token;
+    final pushToken = (_devicePushToken ?? "").trim();
+    if (authToken == null || authToken.isEmpty || pushToken.isEmpty) return;
+    try {
+      final api = ApiClient(baseUrl: resolveApiBaseUrl(), token: authToken);
+      await api.savePushToken(pushToken: pushToken, platform: 'android');
+    } catch (_) {
+      // Best effort; ignore transient failures.
+    }
+  }
+
+  Future<void> _removePushTokenFromBackend(String authToken) async {
+    final pushToken = (_devicePushToken ?? "").trim();
+    if (pushToken.isEmpty) return;
+    try {
+      final api = ApiClient(baseUrl: resolveApiBaseUrl(), token: authToken);
+      await api.removePushToken(pushToken: pushToken);
+    } catch (_) {
+      // Best effort; ignore transient failures.
+    }
   }
 
   Future<void> _restoreSession() async {
@@ -109,6 +158,7 @@ class _GigBitAppState extends State<GigBitApp> {
         _themeMode = theme;
       });
     }
+    await _syncPushTokenToBackend();
   }
 
   Future<void> _handleAuth(
@@ -128,6 +178,7 @@ class _GigBitAppState extends State<GigBitApp> {
     setState(() {
       _token = token;
     });
+    await _syncPushTokenToBackend();
   }
 
   void _toggleTheme() {
@@ -153,6 +204,10 @@ class _GigBitAppState extends State<GigBitApp> {
   }
 
   Future<void> _handleLogout() async {
+    final authToken = _token;
+    if (authToken != null && authToken.isNotEmpty) {
+      await _removePushTokenFromBackend(authToken);
+    }
     final prefs = await SharedPreferences.getInstance();
     final defined = definedApiBaseUrl();
     if (defined != null) {
@@ -164,6 +219,12 @@ class _GigBitAppState extends State<GigBitApp> {
     setState(() {
       _token = null;
     });
+  }
+
+  @override
+  void dispose() {
+    _pushTokenRefreshSub?.cancel();
+    super.dispose();
   }
 
   ThemeData _lightTheme() {
