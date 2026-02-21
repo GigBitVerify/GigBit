@@ -1943,20 +1943,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _integrationLegendButton({
     required String label,
-    required Color color,
     required _PlatformLegendSort value,
   }) {
     final selected = _integrationSortPriority == value;
+    final borderColor = Theme.of(context).colorScheme.primary.withValues(
+          alpha: selected ? 0.9 : 0.45,
+        );
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 44),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
         visualDensity: VisualDensity.compact,
         side: BorderSide(
-          color: color,
+          color: borderColor,
           width: selected ? 1.6 : 1.2,
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: selected
+            ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       onPressed: () => setState(() => _integrationSortPriority = value),
@@ -2547,6 +2551,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (dt == null) return raw.toString();
     final d = dt.toLocal();
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  }
+
+  String _ordinalDay(int day) {
+    if (day % 100 >= 11 && day % 100 <= 13) return '${day}th';
+    switch (day % 10) {
+      case 1:
+        return '${day}st';
+      case 2:
+        return '${day}nd';
+      case 3:
+        return '${day}rd';
+      default:
+        return '${day}th';
+    }
+  }
+
+  String _formatWithIndianCommas(num value) {
+    final s = value.round().toString();
+    if (s.length <= 3) return s;
+    final last3 = s.substring(s.length - 3);
+    var head = s.substring(0, s.length - 3);
+    final parts = <String>[];
+    while (head.length > 2) {
+      parts.insert(0, head.substring(head.length - 2));
+      head = head.substring(0, head.length - 2);
+    }
+    if (head.isNotEmpty) parts.insert(0, head);
+    return '${parts.join(',')},$last3';
   }
 
   String _dateTimeLabel(dynamic raw) {
@@ -4907,7 +4939,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? _tr3('PM', 'अपराह्न', 'सायं')
         : _tr3('AM', 'पूर्वाह्न', 'सकाळ');
     final mm = ist.minute.toString().padLeft(2, '0');
-    return '${ist.day} ${months[ist.month - 1]} ${ist.year}, $h12:$mm $ampm';
+    final dayLabel = widget.language == AppLanguage.en
+        ? _ordinalDay(ist.day)
+        : ist.day.toString();
+    return '$dayLabel ${months[ist.month - 1]} ${ist.year}, $h12:$mm $ampm';
   }
 
   String _formatIstDateOnlySafe(String raw) {
@@ -5442,9 +5477,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 _tr3(
-                    'Rent is disabled (Vehicle rented not selected).',
-                    'किराया बंद है (वाहन किराया चयनित नहीं है)।',
-                    'भाडे बंद आहे (वाहन भाडे निवडलेले नाही).'),
+                    'Rentis disabled (Vehicle is not rented)',
+                    'किराया बंद है (वाहन किराए पर नहीं है)।',
+                    'भाडे बंद आहे (वाहन भाड्याने घेतलेले नाही).'),
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context)
@@ -5710,7 +5745,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   flex: 1,
                   child: _integrationLegendButton(
                     label: _tr3('Connected', 'कनेक्टेड', 'कनेक्टेड'),
-                    color: const Color(0xFF16C784),
                     value: _PlatformLegendSort.connected,
                   ),
                 ),
@@ -5719,7 +5753,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   flex: 1,
                   child: _integrationLegendButton(
                     label: _tr3('Disconnected', 'डिस्कनेक्टेड', 'डिस्कनेक्टेड'),
-                    color: const Color(0xFFFFA000),
                     value: _PlatformLegendSort.disconnected,
                   ),
                 ),
@@ -5728,14 +5761,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   flex: 2,
                   child: _integrationLegendButton(
                     label: _tr3(
-                      'Not Connected',
-                      'कनेक्ट नहीं',
-                      'कनेक्ट नाही',
+                      'Others',
+                      'अन्य',
+                      'इतर',
                     ),
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.35),
                     value: _PlatformLegendSort.neverConnected,
                   ),
                 ),
@@ -6040,9 +6069,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 8),
             Text(
               _tr3(
-                'Loan Limit: Rs ${_loan['limit'] ?? 0}',
-                'ऋण सीमा: Rs ${_loan['limit'] ?? 0}',
-                'कर्ज मर्यादा: Rs ${_loan['limit'] ?? 0}',
+                'Loan Limit: Rs ${_formatWithIndianCommas(_toDoubleOrZero(_loan['limit']))}',
+                'ऋण सीमा: Rs ${_formatWithIndianCommas(_toDoubleOrZero(_loan['limit']))}',
+                'कर्ज मर्यादा: Rs ${_formatWithIndianCommas(_toDoubleOrZero(_loan['limit']))}',
               ),
               style: TextStyle(
                 fontWeight: FontWeight.w700,

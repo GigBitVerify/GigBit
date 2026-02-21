@@ -1871,6 +1871,7 @@ async function getSummary(userId) {
     };
 }
 async function ensureMonthlyInsuranceAutoDebit(userId) {
+    const insuranceMonthlyCharge = 75;
     const u = await pgPool.query("SELECT gigbit_insurance FROM users WHERE id = $1", [userId]);
     if (!u.rowCount || !Boolean(u.rows[0].gigbit_insurance))
         return;
@@ -1878,11 +1879,11 @@ async function ensureMonthlyInsuranceAutoDebit(userId) {
     const monthStart = monthR.rows[0].m;
     const nextMonthR = await pgPool.query("SELECT ($1::timestamptz + INTERVAL '1 month') AS m", [monthStart]);
     const nextMonthStart = nextMonthR.rows[0].m;
-    const exists = await pgPool.query("SELECT 1 FROM withdrawals WHERE user_id = $1 AND created_at >= $2 AND created_at < $3 AND amount = 25 AND insurance_contribution = 25 AND service_fee = 0 AND total_fee = 25 AND user_receives = 0 LIMIT 1", [userId, monthStart, nextMonthStart]);
+    const exists = await pgPool.query("SELECT 1 FROM withdrawals WHERE user_id = $1 AND created_at >= $2 AND created_at < $3 AND insurance_contribution > 0 AND service_fee = 0 AND user_receives = 0 LIMIT 1", [userId, monthStart, nextMonthStart]);
     if (exists.rowCount)
         return;
-    const w = await pgPool.query("INSERT INTO withdrawals (user_id,amount,insurance_contribution,service_fee,total_fee,user_receives,created_at) VALUES ($1,25,25,0,25,0,$2) RETURNING id", [userId, monthStart]);
-    await pgPool.query("INSERT INTO insurance_contributions (user_id,withdrawal_id,amount,created_at) VALUES ($1,$2,25,$3)", [userId, w.rows[0].id, monthStart]);
+    const w = await pgPool.query("INSERT INTO withdrawals (user_id,amount,insurance_contribution,service_fee,total_fee,user_receives,created_at) VALUES ($1,$2,$2,0,$2,0,$3) RETURNING id", [userId, insuranceMonthlyCharge, monthStart]);
+    await pgPool.query("INSERT INTO insurance_contributions (user_id,withdrawal_id,amount,created_at) VALUES ($1,$2,$3,$4)", [userId, w.rows[0].id, insuranceMonthlyCharge, monthStart]);
     await safeRedisDel("dashboard:" + userId);
 }
 async function getLoan(userId) {
