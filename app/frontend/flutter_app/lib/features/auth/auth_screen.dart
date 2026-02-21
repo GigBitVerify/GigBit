@@ -591,7 +591,7 @@ class _AuthScreenState extends State<AuthScreen> {
               controller: _passwordController,
               obscureText: !_authPasswordVisible,
               decoration: InputDecoration(
-                labelText: t('new_password'),
+                labelText: t('password'),
                 suffixIcon: IconButton(
                   onPressed: () => setState(() {
                     _authPasswordVisible = !_authPasswordVisible;
