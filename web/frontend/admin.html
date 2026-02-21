@@ -40,6 +40,7 @@
       color: var(--text);
       background: linear-gradient(135deg, var(--bg), var(--bg2));
       min-height: 100vh;
+      overflow-x: hidden;
     }
     .wrap { width: min(1680px, 96vw); margin: 0 auto; padding: 16px 14px 32px; }
     .top {
@@ -858,7 +859,78 @@
       .approval-list-insurance .approval-row { min-width: 0; }
     }
     @media (max-width: 560px) {
-      .platform-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .wrap { width: 100%; padding: 10px 8px 20px; }
+      .top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .right {
+        width: 100%;
+        justify-content: flex-start;
+      }
+      .toggle-shell {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .brand {
+        font-size: 21px;
+      }
+      .brand img {
+        width: 32px;
+        height: 32px;
+      }
+      .platform-grid { grid-template-columns: 1fr; }
+      .commission-head-row {
+        align-items: flex-start;
+      }
+      .head-controls {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .commission-month {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+      }
+      .approval-head {
+        display: none;
+      }
+      .approval-row,
+      .approval-list-insurance .approval-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .approval-doc {
+        justify-content: flex-start;
+      }
+      .approval-actions {
+        grid-column: 1 / -1;
+      }
+      .deletion-item .row[style*="flex-wrap:nowrap"] {
+        flex-wrap: wrap !important;
+      }
+      th, td {
+        font-size: 12px;
+        padding: 6px 4px;
+      }
+      .menu-dropdown {
+        right: auto;
+        left: 0;
+        width: min(96vw, 320px);
+      }
+    }
+    @media (max-width: 380px) {
+      .section-title {
+        font-size: 17px;
+      }
+      .stat .v {
+        font-size: 20px;
+      }
+      .btn.small {
+        font-size: 11px;
+        padding: 5px 7px;
+      }
     }
   </style>
 </head>

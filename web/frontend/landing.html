@@ -34,6 +34,7 @@
       min-height: 100vh;
       font-family: Inter, Segoe UI, Arial, sans-serif;
       color: var(--text);
+      overflow-x: hidden;
       background:
         radial-gradient(1200px 520px at 8% -10%, #1a4aa3 0%, transparent 55%),
         radial-gradient(900px 460px at 95% 0%, #0f377f 0%, transparent 58%),
@@ -377,6 +378,27 @@
       .brand img { width: 42px; height: 42px; }
       .sub { font-size: 16px; }
       .footer .right { align-items: flex-start; }
+    }
+    @media (max-width: 760px) {
+      .wrap { padding: 14px 12px 24px; }
+      .nav { align-items: flex-start; flex-direction: column; gap: 10px; }
+      .right { width: 100%; justify-content: flex-start; }
+      .headline { font-size: clamp(30px, 11vw, 44px); line-height: 1.02; }
+      .sub { max-width: none; margin-top: 12px; }
+      .actions .btn { width: 100%; justify-content: center; }
+      .details-grid { grid-template-columns: 1fr; }
+      .band { gap: 8px; }
+      .band span { width: 100%; text-align: center; }
+      .timeline h2 { font-size: 24px; }
+      .step { min-height: 0; }
+    }
+    @media (max-width: 460px) {
+      .brand { font-size: 22px; }
+      .brand img { width: 36px; height: 36px; border-radius: 10px; }
+      .toggle-shell { width: 100%; justify-content: space-between; }
+      .section-heading { line-height: 1.1; }
+      .section-desc { font-size: 14px; }
+      .feature h3 { font-size: 18px; }
     }
   </style>
 </head>
