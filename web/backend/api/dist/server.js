@@ -1856,7 +1856,7 @@ async function getSummary(userId) {
        FROM transactions t
        JOIN integration_platform_catalog c ON lower(c.slug) = lower(t.platform) AND c.enabled = TRUE
        WHERE t.user_id = $1`, [userId]),
-        pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM withdrawals WHERE user_id = $1", [userId]),
+        pgPool.query("SELECT COALESCE(SUM(COALESCE(user_receives, amount)),0) AS total FROM withdrawals WHERE user_id = $1", [userId]),
         pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM insurance_contributions WHERE user_id = $1", [userId]),
         pgPool.query("SELECT COALESCE(SUM(amount),0) AS total FROM expenses WHERE user_id = $1", [userId]),
         getWithdrawalLimitState(userId),
