@@ -705,8 +705,7 @@
       gap: 3px;
       line-height: 1.35;
     }
-    #commissionProfit,
-    #commissionTransactionCharge {
+    #commissionProfit {
       font-size: 18px;
       font-weight: 900;
       line-height: 1.25;
@@ -1096,12 +1095,17 @@
       </section>
 
       <section class="commission-grid" style="margin-top:12px;">
-        <div class="panel">
+        <div class="panel" id="insuranceContribPanel">
           <div class="commission-head-row">
-            <div class="commission-head">Transaction charge</div>
-            <select id="commissionMonth2" class="commission-month"></select>
+            <div class="commission-head">Insurance Contributions</div>
+            <button class="expand-btn" id="toggleInsuranceContribHistoryBtn" type="button" data-tip="Show all">▼</button>
           </div>
-          <div class="commission-body" id="commissionTransactionCharge">Rs 0</div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Amount</th><th>Date</th></tr></thead>
+              <tbody id="insuranceContribTable"></tbody>
+            </table>
+          </div>
         </div>
         <div class="panel">
           <div class="commission-head-row">
@@ -1312,7 +1316,9 @@
       withdrawRows: [],
       loanItems: [],
       claimItems: [],
-      deleteReqItems: []
+      deleteReqItems: [],
+      insuranceContribExpanded: false,
+      insuranceContribRows: []
     };
     let commissionRefreshTimer = null;
     let warmupInFlight = null;
@@ -1367,14 +1373,21 @@
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
+        timeZone: "Asia/Kolkata",
       });
     };
     const fmtDateOnly = (raw) => {
       const d = raw ? new Date(raw) : null;
       if (!d || Number.isNaN(d.getTime())) return "-";
-      const dd = String(d.getDate()).padStart(2, "0");
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const yyyy = String(d.getFullYear());
+      const parts = d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      }).split("/");
+      const dd = parts[0] || "01";
+      const mm = parts[1] || "01";
+      const yyyy = parts[2] || "1970";
       return `${dd}/${mm}/${yyyy}`;
     };
     const safe = (v) => (v ?? "").toString();
@@ -1584,6 +1597,11 @@
       if (d) {
         d.textContent = state.deleteReqHistoryExpanded ? "▲" : "▼";
         d.setAttribute("data-tip", state.deleteReqHistoryExpanded ? "Show less" : "Show all");
+      }
+      const ic = $("toggleInsuranceContribHistoryBtn");
+      if (ic) {
+        ic.textContent = state.insuranceContribExpanded ? "▲" : "▼";
+        ic.setAttribute("data-tip", state.insuranceContribExpanded ? "Show less" : "Show all");
       }
     }
 
@@ -2188,8 +2206,6 @@
       syncCommissionMonthSelects(availableMonths, state.commissionMonth);
       state.commissionItems = out.items || [];
       renderCommissionGigPlatform();
-      const txCharge = Number(out.transactionChargeTotal || 0);
-      $("commissionTransactionCharge").textContent = fmtRs(txCharge);
       $("commissionProfit").textContent = fmtRs(Number(out.profit || 0));
     }
 
@@ -2199,6 +2215,25 @@
       $("commissionGigPlatform").innerHTML = limited.length
         ? limited.map((x) => `<div class="commission-platform-line">${prettyPlatform(safe(x.platform))} : ${fmtRs(x.commission)} | ${Number(x.usersCount || 0)} Users | Start Date : ${fmtDateOnly(x.startDate)}</div>`).join("")
         : "No active plan/platform commission";
+      syncExpandButtons();
+    }
+
+    async function loadInsuranceContributions() {
+      const out = await api("/admin/insurance-contributions");
+      state.insuranceContribRows = out.items || [];
+      renderInsuranceContributions();
+    }
+
+    function renderInsuranceContributions() {
+      const rows = Array.isArray(state.insuranceContribRows) ? state.insuranceContribRows : [];
+      const limited = state.insuranceContribExpanded ? rows : rows.slice(0, HISTORY_PREVIEW_COUNT);
+      $("insuranceContribTable").innerHTML = limited.map((x) => `
+        <tr>
+          <td>${safe(x.full_name || x.username || x.email || x.user_id)}</td>
+          <td>${safe(x.email)}</td>
+          <td>${fmtRs(x.amount)}</td>
+          <td>${fmtDateTime12(x.created_at)}</td>
+        </tr>`).join("");
       syncExpandButtons();
     }
 
@@ -2322,7 +2357,7 @@
     }
 
     function syncCommissionMonthSelects(months, selected) {
-      const ids = ["commissionMonth1", "commissionMonth2", "commissionMonth3"];
+      const ids = ["commissionMonth1", "commissionMonth3"];
       ids.forEach((id) => {
         const el = $(id);
         if (!el) return;
@@ -2338,7 +2373,6 @@
       syncCommissionMonthSelects(
         Array.from(new Set([
           ...Array.from($("commissionMonth1")?.options || []).map((o) => o.value),
-          ...Array.from($("commissionMonth2")?.options || []).map((o) => o.value),
           ...Array.from($("commissionMonth3")?.options || []).map((o) => o.value),
         ])),
         next
@@ -2357,6 +2391,7 @@
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
           loadWithdrawals().catch(() => {}),
+          loadInsuranceContributions().catch(() => {}),
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),
@@ -2500,6 +2535,7 @@
         loadClaims(),
         loadWithdrawals(),
         loadCommissionShare(),
+        loadInsuranceContributions(),
         loadDeleteRequests(),
         loadPlatforms(),
         loadAdminActivityNotifications(),
@@ -2548,7 +2584,6 @@
     });
     $("themeBtn").addEventListener("click", () => setTheme(state.theme === "dark" ? "light" : "dark"));
     $("commissionMonth1").addEventListener("change", (e) => onCommissionMonthChanged(e.target.value));
-    $("commissionMonth2").addEventListener("change", (e) => onCommissionMonthChanged(e.target.value));
     $("commissionMonth3").addEventListener("change", (e) => onCommissionMonthChanged(e.target.value));
     $("toggleGigHistoryBtn").addEventListener("click", () => {
       const nextGig = !state.gigPlatformExpanded;
@@ -2569,6 +2604,9 @@
     $("toggleDeleteReqHistoryBtn").addEventListener("click", () => {
       animateSingleSectionToggle("deleteReqPanel", "deleteReqList", "deleteReqHistoryExpanded", renderDeleteRequests);
     });
+    $("toggleInsuranceContribHistoryBtn").addEventListener("click", () => {
+      animateSingleSectionToggle("insuranceContribPanel", "insuranceContribTable", "insuranceContribExpanded", renderInsuranceContributions);
+    });
     $("notifDayFilter").addEventListener("change", renderNotifications);
     $("notifMonthFilter").addEventListener("change", renderNotifications);
     $("notifYearFilter").addEventListener("change", renderNotifications);
@@ -2587,6 +2625,7 @@
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
           loadWithdrawals().catch(() => {}),
+          loadInsuranceContributions().catch(() => {}),
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),
           loadClaims().catch(() => {}),

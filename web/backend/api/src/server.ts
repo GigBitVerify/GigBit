@@ -2404,12 +2404,12 @@ async function ensureMonthlyInsuranceAutoDebit(userId: string): Promise<void> {
   if (exists.rowCount) return;
 
   const w = await pgPool.query(
-    "INSERT INTO withdrawals (user_id,amount,insurance_contribution,service_fee,total_fee,user_receives,created_at) VALUES ($1,$2,$2,0,$2,0,$3) RETURNING id",
-    [userId, insuranceMonthlyCharge, monthStart],
+    "INSERT INTO withdrawals (user_id,amount,insurance_contribution,service_fee,total_fee,user_receives,created_at) VALUES ($1,$2,$2,0,$2,0,NOW()) RETURNING id",
+    [userId, insuranceMonthlyCharge],
   );
   await pgPool.query(
-    "INSERT INTO insurance_contributions (user_id,withdrawal_id,amount,created_at) VALUES ($1,$2,$3,$4)",
-    [userId, w.rows[0].id, insuranceMonthlyCharge, monthStart],
+    "INSERT INTO insurance_contributions (user_id,withdrawal_id,amount,created_at) VALUES ($1,$2,$3,NOW())",
+    [userId, w.rows[0].id, insuranceMonthlyCharge],
   );
   await safeRedisDel("dashboard:" + userId);
 }
@@ -2921,12 +2921,13 @@ app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
         u.username
        FROM withdrawals w
        LEFT JOIN users u ON u.id = w.user_id
+       WHERE COALESCE(w.user_receives, 0) > 0
        ORDER BY w.created_at DESC
        LIMIT 1000`
     ),
     pgPool.query(
       `SELECT
-        COALESCE(SUM(amount),0) AS total_withdrawn,
+        COALESCE(SUM(COALESCE(user_receives, amount)),0) AS total_withdrawn,
         COALESCE(SUM(insurance_contribution),0) AS total_insurance,
         COALESCE(SUM(service_fee),0) AS total_fees,
         (SELECT COUNT(*)::int FROM users) AS total_users,
@@ -2976,7 +2977,8 @@ app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
           FROM limits l
           WHERE l.active_window_count > 0 OR l.remaining_limit > 0
         ) AS total_active_users
-       FROM withdrawals`
+       FROM withdrawals
+       WHERE COALESCE(user_receives, 0) > 0`
     ),
     pgPool.query(
       `SELECT
@@ -3000,6 +3002,33 @@ app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
       ...totalsRow,
       claimed_insurance_amount: Number((claimsRow as any).claimed_insurance_amount ?? 0),
       approved_claims_count: Number((claimsRow as any).approved_claims_count ?? 0),
+    },
+  });
+});
+
+app.get("/admin/insurance-contributions", requireAdminKey, async (_req, res) => {
+  const r = await pgPool.query(
+    `SELECT
+      ic.id,
+      ic.user_id,
+      ic.amount,
+      ic.created_at,
+      u.email,
+      COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
+      u.username
+     FROM insurance_contributions ic
+     LEFT JOIN users u ON u.id = ic.user_id
+     ORDER BY ic.created_at DESC
+     LIMIT 1000`
+  );
+  const totals = await pgPool.query(
+    `SELECT COALESCE(SUM(amount),0) AS total_contributions
+     FROM insurance_contributions`
+  );
+  res.json({
+    items: r.rows,
+    totals: {
+      total_contributions: Number(totals.rows[0]?.total_contributions ?? 0),
     },
   });
 });
@@ -3102,7 +3131,22 @@ app.get("/admin/commission-share", requireAdminKey, async (req, res) => {
          CROSS JOIN month_bounds mb
          WHERE w.created_at >= mb.m_start
            AND w.created_at < mb.m_end
-       ),0)::int AS transaction_charge_total`,
+       ),0)::int AS transaction_charge_total,
+       COALESCE((
+         SELECT SUM(
+           CASE
+             WHEN lower(sp.plan) = 'solo' THEN 15
+             WHEN lower(sp.plan) = 'duo' THEN 24
+             WHEN lower(sp.plan) = 'trio' THEN 30
+             WHEN lower(sp.plan) = 'unity' THEN 30
+             ELSE 0
+           END
+         )
+         FROM subscription_purchases sp
+         CROSS JOIN month_bounds mb
+         WHERE sp.created_at >= mb.m_start
+           AND sp.created_at < mb.m_end
+       ),0)::int AS profit_total`,
     monthParams
   );
 
@@ -3134,7 +3178,7 @@ app.get("/admin/commission-share", requireAdminKey, async (req, res) => {
   const totalCommission = items.reduce((s, x) => s + Number(x.commission || 0), 0);
   const subscriptionAmountTotal = Number(totals.rows[0]?.subscription_amount_total ?? 0);
   const transactionChargeTotal = Number(totals.rows[0]?.transaction_charge_total ?? 0);
-  const profit = subscriptionAmountTotal - totalCommission - transactionChargeTotal;
+  const profit = Number(totals.rows[0]?.profit_total ?? 0);
 
   res.json({
     items,
