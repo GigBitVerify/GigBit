@@ -2362,15 +2362,9 @@ app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
        WHERE COALESCE(user_receives, 0) > 0`),
         pgPool.query(`SELECT
         COUNT(*)::int AS approved_claims_count,
-        COALESCE((
-          SELECT SUM(w.insurance_contribution)
-          FROM withdrawals w
-          WHERE w.user_id IN (
-            SELECT DISTINCT c.user_id
-            FROM insurance_claims c
-            WHERE lower(c.status) = 'approved'
-          )
-        ), 0) AS claimed_insurance_amount`),
+        COALESCE(SUM(claim_amount), 0) AS claimed_insurance_amount
+       FROM insurance_claims
+       WHERE lower(status) = 'approved'`),
     ]);
     const totalsRow = totals.rows[0] ?? {};
     const claimsRow = claimsStats.rows[0] ?? {};
