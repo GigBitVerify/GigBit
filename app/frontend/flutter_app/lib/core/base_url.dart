@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 const String _definedApiBaseUrl = String.fromEnvironment('API_BASE_URL');
 const String _definedHostLanIp = String.fromEnvironment('HOST_LAN_IP');
+const String _railwayProductionApiBase = 'https://gigbit-api-production.up.railway.app';
 
 String? definedApiBaseUrl() {
   return _definedApiBaseUrl.isNotEmpty ? _definedApiBaseUrl : null;
@@ -16,10 +17,19 @@ const String kApiBaseUrlPrefKey = 'api_base_url';
 
 String? _runtimeApiBaseUrl;
 
+String? migrateLegacyApiBaseUrl(String? url) {
+  var v = (url ?? '').trim();
+  if (v.isEmpty) return null;
+  if (v.contains('gigbit-api.onrender.com') || v.contains('.onrender.com')) {
+    return _railwayProductionApiBase;
+  }
+  return v;
+}
+
 /// Normalizes + rejects persisted URLs that cause Android-to-host connectivity
 /// issues.
 String? sanitizeApiBaseUrl(String? url) {
-  var v = (url ?? '').trim();
+  var v = migrateLegacyApiBaseUrl(url) ?? '';
   if (v.isEmpty) return null;
   if (v.endsWith('/')) v = v.substring(0, v.length - 1);
 
@@ -67,6 +77,12 @@ String resolveApiBaseUrl() {
 
   if (kIsWeb) {
     return 'http://localhost:4000';
+  }
+
+  // For release builds, default to production Railway API when no explicit
+  // runtime/build-time URL is available.
+  if (kReleaseMode) {
+    return _railwayProductionApiBase;
   }
 
   // Default for Android dev: use adb reverse (device tcp:4000 -> host tcp:4000).
