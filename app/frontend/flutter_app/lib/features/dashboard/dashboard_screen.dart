@@ -3240,11 +3240,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _planPrice(String plan) {
     switch (plan) {
       case 'solo':
-        return 299;
+        return 25;
       case 'duo':
-        return 399;
+        return 50;
       case 'trio':
-        return 499;
+        return 75;
       case 'unity':
         return 229;
       default:

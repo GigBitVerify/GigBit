@@ -192,9 +192,9 @@ function planIncrement(plan: string): number {
 
 function planAmount(plan: string): number {
   const p = plan.trim().toLowerCase();
-  if (p === "solo") return 299;
-  if (p === "duo") return 399;
-  if (p === "trio") return 499;
+  if (p === "solo") return 25;
+  if (p === "duo") return 50;
+  if (p === "trio") return 75;
   // Legacy support for previously purchased plans.
   if (p === "unity") return 229;
   return 0;
@@ -2383,7 +2383,7 @@ async function getSummary(userId: string): Promise<{
 }
 
 async function ensureMonthlyInsuranceAutoDebit(userId: string): Promise<void> {
-  const insuranceMonthlyCharge = 75;
+  const insuranceMonthlyCharge = 50;
   const u = await pgPool.query(
     "SELECT gigbit_insurance FROM users WHERE id = $1",
     [userId],
@@ -3046,10 +3046,10 @@ app.get("/admin/commission-share", requireAdminKey, async (req, res) => {
        SELECT
          ap.user_id,
          CASE
-           WHEN ap.plan = 'solo' THEN 5
-           WHEN ap.plan = 'duo' THEN 12
-           WHEN ap.plan = 'trio' THEN 18
-           WHEN ap.plan = 'unity' THEN 18
+           WHEN ap.plan = 'solo' THEN 10
+           WHEN ap.plan = 'duo' THEN 13
+           WHEN ap.plan = 'trio' THEN 15
+           WHEN ap.plan = 'unity' THEN 15
            ELSE 0
          END::int AS rate
        FROM user_month_plan ap
