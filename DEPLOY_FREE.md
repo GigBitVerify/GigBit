@@ -34,7 +34,6 @@ This setup uses:
 - `REDIS_URL=<from Railway Redis>`
 - `ADMIN_API_KEY=<your key>`
 - SMTP vars (OTP/email)
-- Firebase vars (push notifications)
 
 5. Verify API:
 - `https://<your-railway-domain>/health`

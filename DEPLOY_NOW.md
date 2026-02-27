@@ -60,9 +60,6 @@ git push
 - `SMTP_USER_OTP_USER=<user otp smtp user>`
 - `SMTP_USER_OTP_PASS=<user otp smtp pass>`
 - `SMTP_USER_OTP_FROM=<user otp display name + email>`
-- `FCM_PROJECT_ID=<firebase project id>`
-- `FCM_CLIENT_EMAIL=<firebase service account client email>`
-- `FCM_PRIVATE_KEY=<firebase private key with \n preserved>`
 
 6. Confirm API:
 - `https://YOUR-RAILWAY-API-DOMAIN/health` returns `status: ok`
