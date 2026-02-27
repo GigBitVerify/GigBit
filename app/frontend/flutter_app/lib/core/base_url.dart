@@ -79,13 +79,7 @@ String resolveApiBaseUrl() {
     return 'http://localhost:4000';
   }
 
-  // For release builds, default to production Railway API when no explicit
-  // runtime/build-time URL is available.
-  if (kReleaseMode) {
-    return _railwayProductionApiBase;
-  }
-
-  // Default for Android dev: use adb reverse (device tcp:4000 -> host tcp:4000).
-  // Emulator without adb reverse should use http://10.0.2.2:4000.
-  return 'http://127.0.0.1:4000';
+  // Default mobile fallback: always use production Railway API unless explicitly
+  // overridden by runtime/build-time URL.
+  return _railwayProductionApiBase;
 }
