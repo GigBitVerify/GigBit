@@ -13,7 +13,18 @@ import type { AuthRequest } from "./types.js";
 type UserRow = { id: string; email: string; username: string | null; name: string; password_hash: string };
 
 const app = express();
-app.use(compression({ threshold: 1024 }));
+app.use(
+  compression({
+    threshold: 1024,
+    filter: (req, res) => {
+      const accept = String(req.headers.accept ?? "").toLowerCase();
+      if (accept.includes("text/event-stream") || req.path.endsWith("/stream")) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  }),
+);
 const registerVerifiedMemory = new Map<string, number>();
 const ADMIN_LOGIN_EMAIL = "gigbitaccess@gmail.com";
 const platformCatalogStreamClients = new Set<Response>();
