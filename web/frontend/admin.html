@@ -1102,7 +1102,7 @@
           </div>
           <div style="overflow:auto;">
             <table>
-              <thead><tr><th>Name</th><th>Email</th><th>Amount</th><th>Date</th></tr></thead>
+              <thead><tr><th>Name</th><th>Amount</th><th>Date</th><th>Time</th></tr></thead>
               <tbody id="insuranceContribTable"></tbody>
             </table>
           </div>
@@ -1389,6 +1389,16 @@
       const mm = parts[1] || "01";
       const yyyy = parts[2] || "1970";
       return `${dd}/${mm}/${yyyy}`;
+    };
+    const fmtTime12 = (raw) => {
+      const d = raw ? new Date(raw) : null;
+      if (!d || Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata",
+      });
     };
     const safe = (v) => (v ?? "").toString();
     const hasFreshAdminGate = () => {
@@ -2178,7 +2188,6 @@
       $("totWithdrawn").textContent = fmtRs(totals.total_withdrawn);
       $("totUsers").textContent = fmtCount(totals.total_users);
       $("totActiveUsers").textContent = fmtCount(totals.total_active_users);
-      $("sharedPool").textContent = fmtRs(totals.total_insurance);
       const approvedClaims = Number(totals.approved_claims_count ?? 0);
       const claimedAmt = Number(totals.claimed_insurance_amount ?? 0);
       $("claimedPoolValue").textContent = approvedClaims > 0 ? fmtRs(claimedAmt) : "No Claims Till Now";
@@ -2221,6 +2230,7 @@
     async function loadInsuranceContributions() {
       const out = await api("/admin/insurance-contributions");
       state.insuranceContribRows = out.items || [];
+      $("sharedPool").textContent = fmtRs(Number(out?.totals?.total_contributions || 0));
       renderInsuranceContributions();
     }
 
@@ -2230,9 +2240,9 @@
       $("insuranceContribTable").innerHTML = limited.map((x) => `
         <tr>
           <td>${safe(x.full_name || x.username || x.email || x.user_id)}</td>
-          <td>${safe(x.email)}</td>
           <td>${fmtRs(x.amount)}</td>
-          <td>${fmtDateTime12(x.created_at)}</td>
+          <td>${fmtDateOnly(x.created_at)}</td>
+          <td>${fmtTime12(x.created_at)}</td>
         </tr>`).join("");
       syncExpandButtons();
     }

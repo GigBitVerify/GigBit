@@ -3012,14 +3012,13 @@ app.get("/admin/insurance-contributions", requireAdminKey, async (_req, res) => 
       ic.id,
       ic.user_id,
       ic.amount,
-      ic.created_at,
-      u.email,
-      COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
-      u.username
+     ic.created_at,
+     u.email,
+     COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
+     u.username
      FROM insurance_contributions ic
      LEFT JOIN users u ON u.id = ic.user_id
-     ORDER BY ic.created_at DESC
-     LIMIT 1000`
+     ORDER BY ic.created_at DESC`
   );
   const totals = await pgPool.query(
     `SELECT COALESCE(SUM(amount),0) AS total_contributions
