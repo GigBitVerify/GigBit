@@ -3332,7 +3332,24 @@ async function ensureSchema(): Promise<void> {
   ];
 
   for (const sql of statements) {
-    await pgPool.query(sql);
+    try {
+      await pgPool.query(sql);
+    } catch (error: any) {
+      const code = String(error?.code ?? "");
+      const text = String(sql).trim().toUpperCase();
+      const isUniqueIndexStmt = text.startsWith("CREATE UNIQUE INDEX");
+      // Existing production data may violate late-added unique index rules.
+      // Do not crash startup for those cases; continue with degraded indexing.
+      if (isUniqueIndexStmt && code === "23505") {
+        console.warn("Skipping unique index creation due to duplicate existing data", {
+          code,
+          detail: error?.detail,
+          statement: sql,
+        });
+        continue;
+      }
+      throw error;
+    }
   }
 
   // Remove deprecated platforms completely.
