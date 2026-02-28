@@ -702,9 +702,7 @@
       word-break: break-word;
       overflow-wrap: anywhere;
     }
-    .complaints-card {
-      margin-top: 12px;
-    }
+    .complaints-card { margin-top: 0; }
     .commission-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -804,6 +802,11 @@
       gap: 10px;
       margin-top: 12px;
     }
+    .gig-complaints-row {
+      margin-top: 12px;
+      align-items: stretch;
+    }
+    .gig-complaints-row > .panel { height: 100%; }
     .withdraw-row > .panel { height: 100%; }
     .withdraw-charge-panel .commission-card {
       min-height: 0;
@@ -974,25 +977,42 @@
     @media (max-width: 560px) {
       .wrap { width: 100%; padding: 10px 8px 20px; }
       .top {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        flex-wrap: nowrap;
       }
       .right {
-        width: 100%;
-        justify-content: flex-start;
-        gap: 6px;
+        width: auto;
+        justify-content: flex-end;
+        gap: 4px;
+        flex-wrap: nowrap;
       }
       .toggle-shell {
         width: 100%;
         justify-content: space-between;
       }
       .brand {
-        font-size: 21px;
+        font-size: 16px;
+        gap: 6px;
+        min-width: 0;
+        white-space: nowrap;
       }
       .brand img {
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
+        border-radius: 7px;
+      }
+      .icon-menu-btn,
+      .action-icon-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+      }
+      .icon-menu-btn svg,
+      .action-icon-btn svg {
+        transform: scale(.86);
       }
       .platform-grid { grid-template-columns: 1fr; }
       .commission-head-row {
@@ -1197,7 +1217,7 @@
         </div>
       </section>
 
-      <section class="single-panel-row">
+      <section class="grid g2 gig-complaints-row">
         <div class="panel withdraw-charge-panel" id="gigHistoryPanel">
           <div class="commission-card">
             <div class="commission-head-row">
@@ -1210,17 +1230,16 @@
             <div class="commission-body" id="commissionGigPlatform">No data</div>
           </div>
         </div>
-      </section>
-
-      <section class="panel complaints-card">
-        <div class="commission-head-row" style="margin-bottom:8px;">
-          <h3 class="section-title" style="margin:0;">Raised Complaints</h3>
-        </div>
-        <div style="overflow:auto;">
-          <table>
-            <thead><tr><th>Name</th><th>Ticket ID</th></tr></thead>
-            <tbody id="complaintsTable"></tbody>
-          </table>
+        <div class="panel complaints-card">
+          <div class="commission-head-row" style="margin-bottom:8px;">
+            <h3 class="section-title" style="margin:0;">Raised Complaints</h3>
+          </div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Name</th><th>Ticket ID</th></tr></thead>
+              <tbody id="complaintsTable"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
