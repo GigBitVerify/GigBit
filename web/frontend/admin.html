@@ -641,9 +641,10 @@
       display: grid;
       gap: 8px;
       margin-bottom: 10px;
+      overflow: hidden;
     }
     .graph-grid {
-      height: 210px;
+      min-height: 0;
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
@@ -660,7 +661,7 @@
       width: 100%;
     }
     .graph-track {
-      height: 170px;
+      height: 128px;
       width: 34px;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -692,11 +693,17 @@
       font-size: 12px;
       font-weight: 800;
       line-height: 1.25;
-      min-height: 30px;
+      min-height: 34px;
       display: flex;
       align-items: flex-start;
       justify-content: center;
       width: 100%;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .complaints-card {
+      margin-top: 12px;
     }
     .commission-grid {
       display: grid;
@@ -1032,8 +1039,8 @@
       .commission-grid { grid-template-columns: 1fr; }
       .panel { padding: 10px; }
       .section-title { font-size: 18px; }
-      .graph-grid { height: 190px; gap: 8px; }
-      .graph-track { height: 150px; width: 28px; }
+      .graph-grid { gap: 8px; }
+      .graph-track { height: 108px; width: 28px; }
       .graph-value, .graph-label { font-size: 11px; }
       .approval-row,
       .approval-list-insurance .approval-row {
@@ -1060,8 +1067,8 @@
       .section-title {
         font-size: 17px;
       }
-      .graph-grid { height: 175px; gap: 6px; }
-      .graph-track { height: 138px; width: 24px; }
+      .graph-grid { gap: 6px; }
+      .graph-track { height: 96px; width: 24px; }
       .btn.small {
         font-size: 11px;
         padding: 5px 7px;
@@ -1202,6 +1209,18 @@
             </div>
             <div class="commission-body" id="commissionGigPlatform">No data</div>
           </div>
+        </div>
+      </section>
+
+      <section class="panel complaints-card">
+        <div class="commission-head-row" style="margin-bottom:8px;">
+          <h3 class="section-title" style="margin:0;">Raised Complaints</h3>
+        </div>
+        <div style="overflow:auto;">
+          <table>
+            <thead><tr><th>Name</th><th>Ticket ID</th></tr></thead>
+            <tbody id="complaintsTable"></tbody>
+          </table>
         </div>
       </section>
 
@@ -1374,6 +1393,7 @@
       withdrawRows: [],
       loanItems: [],
       claimItems: [],
+      complaintItems: [],
       deleteReqItems: [],
       insuranceContribExpanded: false,
       insuranceContribRows: [],
@@ -2319,6 +2339,23 @@
       syncExpandButtons();
     }
 
+    async function loadComplaints() {
+      const out = await api("/admin/support-tickets");
+      state.complaintItems = out.items || [];
+      renderComplaints();
+    }
+
+    function renderComplaints() {
+      const rows = Array.isArray(state.complaintItems) ? state.complaintItems : [];
+      $("complaintsTable").innerHTML = rows.length
+        ? rows.map((x) => `
+          <tr>
+            <td>${safe(x.full_name || x.username || x.email || x.user_id)}</td>
+            <td>${safe(x.ticket_number || "-")}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="2" class="muted">No complaints</td></tr>`;
+    }
+
     async function loadInsuranceContributions() {
       const out = await api("/admin/insurance-contributions");
       state.insuranceContribRows = out.items || [];
@@ -2493,6 +2530,7 @@
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
           loadWithdrawals().catch(() => {}),
+          loadComplaints().catch(() => {}),
           loadInsuranceContributions().catch(() => {}),
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),
@@ -2635,6 +2673,7 @@
       await Promise.all([
         loadLoans(),
         loadClaims(),
+        loadComplaints(),
         loadWithdrawals(),
         loadCommissionShare(),
         loadInsuranceContributions(),
@@ -2727,6 +2766,7 @@
           loadCommissionShare().catch(() => {}),
           loadAdminActivityNotifications().catch(() => {}),
           loadWithdrawals().catch(() => {}),
+          loadComplaints().catch(() => {}),
           loadInsuranceContributions().catch(() => {}),
           loadDeleteRequests().catch(() => {}),
           loadLoans().catch(() => {}),

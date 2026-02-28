@@ -2904,6 +2904,27 @@ app.get("/admin/activity-logs", requireAdminKey, async (req, res) => {
   res.json({ items: r.rows });
 });
 
+app.get("/admin/support-tickets", requireAdminKey, async (req, res) => {
+  const rawLimit = Number(req.query?.limit ?? 500);
+  const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(2000, Math.floor(rawLimit))) : 500;
+  const r = await pgPool.query(
+    `SELECT
+      s.id,
+      s.ticket_number,
+      s.user_id,
+      s.created_at,
+      u.email,
+      COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
+      u.username
+     FROM support_tickets s
+     LEFT JOIN users u ON u.id = s.user_id
+     ORDER BY s.created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  res.json({ items: r.rows });
+});
+
 app.get("/admin/withdrawals", requireAdminKey, async (_req, res) => {
   const [r, totals, claimsStats] = await Promise.all([
     pgPool.query(
