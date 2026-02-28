@@ -777,6 +777,12 @@
       margin-top: 12px;
       align-items: stretch;
     }
+    .single-panel-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
     .withdraw-row > .panel { height: 100%; }
     .withdraw-charge-panel .commission-card {
       min-height: 0;
@@ -1008,6 +1014,7 @@
       }
     }
     @media (max-width: 760px) {
+      .withdraw-row { grid-template-columns: 1fr; }
       .commission-grid { grid-template-columns: 1fr; }
       .panel { padding: 10px; }
       .section-title { font-size: 18px; }
@@ -1110,10 +1117,24 @@
     </header>
 
     <main id="portalView">
-      <section class="panel">
-        <h2 class="section-title" id="portalTitle">Admin Operations Overview</h2>
-        <p class="lead" id="portalDesc">Monitor approvals, configure platform availability, and review financial summaries in real time.</p>
-        <div class="overview-graph" id="overviewGraph"></div>
+      <section class="withdraw-row">
+        <div class="panel">
+          <h2 class="section-title" id="portalTitle">Admin Operations Overview</h2>
+          <p class="lead" id="portalDesc">Monitor approvals, configure platform availability, and review financial summaries in real time.</p>
+          <div class="overview-graph" id="overviewGraph"></div>
+        </div>
+        <div class="panel" id="withdrawHistoryPanel">
+          <div class="commission-head-row" style="margin-bottom:8px;">
+            <h3 class="section-title" id="wdTitle" style="margin:0;">Withdrawals History</h3>
+            <button class="expand-btn" id="toggleWithdrawHistoryBtn" type="button" data-tip="Show all">▼</button>
+          </div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Amount</th><th>Date</th></tr></thead>
+              <tbody id="withdrawTable"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <section class="grid g2" style="margin-top:12px;">
@@ -1155,19 +1176,7 @@
         </div>
       </section>
 
-      <section class="withdraw-row">
-        <div class="panel" id="withdrawHistoryPanel">
-          <div class="commission-head-row" style="margin-bottom:8px;">
-            <h3 class="section-title" id="wdTitle" style="margin:0;">Withdrawals History</h3>
-            <button class="expand-btn" id="toggleWithdrawHistoryBtn" type="button" data-tip="Show all">▼</button>
-          </div>
-          <div style="overflow:auto;">
-            <table>
-              <thead><tr><th>Name</th><th>Email</th><th>Amount</th><th>Date</th></tr></thead>
-              <tbody id="withdrawTable"></tbody>
-            </table>
-          </div>
-        </div>
+      <section class="single-panel-row">
         <div class="panel withdraw-charge-panel" id="gigHistoryPanel">
           <div class="commission-card">
             <div class="commission-head-row">
