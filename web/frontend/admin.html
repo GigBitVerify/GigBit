@@ -1208,12 +1208,17 @@
             </table>
           </div>
         </div>
-        <div class="panel">
-          <div class="commission-head-row">
-            <div class="commission-head">Profit</div>
-            <select id="commissionMonth3" class="commission-month"></select>
+        <div class="panel complaints-card" id="complaintsPanel">
+          <div class="commission-head-row" style="margin-bottom:8px;">
+            <h3 class="section-title" style="margin:0;">Raised Complaints</h3>
+            <button class="expand-btn" id="toggleComplaintsHistoryBtn" type="button" data-tip="Show all">▼</button>
           </div>
-          <div class="commission-body" id="commissionProfit">Rs 0</div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Name</th><th>Ticket ID</th><th>Description</th></tr></thead>
+              <tbody id="complaintsTable"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -1230,15 +1235,10 @@
             <div class="commission-body" id="commissionGigPlatform">No data</div>
           </div>
         </div>
-        <div class="panel complaints-card">
-          <div class="commission-head-row" style="margin-bottom:8px;">
-            <h3 class="section-title" style="margin:0;">Raised Complaints</h3>
-          </div>
-          <div style="overflow:auto;">
-            <table>
-              <thead><tr><th>Name</th><th>Ticket ID</th></tr></thead>
-              <tbody id="complaintsTable"></tbody>
-            </table>
+        <div class="panel pool-card">
+          <div class="pool-split">
+            <div class="pool-label">Shared Insurance Pool</div>
+            <div class="pool-value" id="sharedPool">Rs 0</div>
           </div>
         </div>
       </section>
@@ -1258,11 +1258,12 @@
             </div>
             <div id="pfMsg" class="muted" style="margin-top:8px;"></div>
           </div>
-          <div class="panel pool-card">
-            <div class="pool-split">
-              <div class="pool-label">Shared Insurance Pool</div>
-              <div class="pool-value" id="sharedPool">Rs 0</div>
+          <div class="panel">
+            <div class="commission-head-row">
+              <div class="commission-head">Profit</div>
+              <select id="commissionMonth3" class="commission-month"></select>
             </div>
+            <div class="commission-body" id="commissionProfit">Rs 0</div>
           </div>
           <div class="panel" id="deleteReqPanel">
             <div class="commission-head-row" style="margin-bottom:8px;">
@@ -1407,6 +1408,7 @@
       withdrawHistoryExpanded: false,
       loanHistoryExpanded: false,
       insuranceHistoryExpanded: false,
+      complaintsHistoryExpanded: false,
       deleteReqHistoryExpanded: false,
       commissionItems: [],
       withdrawRows: [],
@@ -1706,6 +1708,11 @@
       if (i) {
         i.textContent = state.insuranceHistoryExpanded ? "▲" : "▼";
         i.setAttribute("data-tip", state.insuranceHistoryExpanded ? "Show less" : "Show all");
+      }
+      const c = $("toggleComplaintsHistoryBtn");
+      if (c) {
+        c.textContent = state.complaintsHistoryExpanded ? "▲" : "▼";
+        c.setAttribute("data-tip", state.complaintsHistoryExpanded ? "Show less" : "Show all");
       }
       const d = $("toggleDeleteReqHistoryBtn");
       if (d) {
@@ -2366,13 +2373,16 @@
 
     function renderComplaints() {
       const rows = Array.isArray(state.complaintItems) ? state.complaintItems : [];
-      $("complaintsTable").innerHTML = rows.length
-        ? rows.map((x) => `
+      const limited = state.complaintsHistoryExpanded ? rows : rows.slice(0, HISTORY_PREVIEW_COUNT);
+      $("complaintsTable").innerHTML = limited.length
+        ? limited.map((x) => `
           <tr>
             <td>${safe(x.full_name || x.username || x.email || x.user_id)}</td>
             <td>${safe(x.ticket_number || "-")}</td>
+            <td>${safe(x.complaint || "-")}</td>
           </tr>`).join("")
-        : `<tr><td colspan="2" class="muted">No complaints</td></tr>`;
+        : `<tr><td colspan="3" class="muted">No complaints</td></tr>`;
+      syncExpandButtons();
     }
 
     async function loadInsuranceContributions() {
@@ -2760,6 +2770,9 @@
     });
     $("toggleInsuranceHistoryBtn").addEventListener("click", () => {
       animateSingleSectionToggle("insurancePanel", "claimList", "insuranceHistoryExpanded", renderClaims);
+    });
+    $("toggleComplaintsHistoryBtn").addEventListener("click", () => {
+      animateSingleSectionToggle("complaintsPanel", "complaintsTable", "complaintsHistoryExpanded", renderComplaints);
     });
     $("toggleDeleteReqHistoryBtn").addEventListener("click", () => {
       animateSingleSectionToggle("deleteReqPanel", "deleteReqList", "deleteReqHistoryExpanded", renderDeleteRequests);

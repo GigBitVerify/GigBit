@@ -2295,6 +2295,7 @@ app.get("/admin/support-tickets", requireAdminKey, async (req, res) => {
       s.id,
       s.ticket_number,
       s.user_id,
+      s.complaint,
       s.created_at,
       u.email,
       COALESCE(NULLIF(u.name,''), u.full_name) AS full_name,
